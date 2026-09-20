@@ -341,6 +341,56 @@
     .setpanel{right:auto;left:0;width:min(302px,calc(100vw - 64px))}
   }
   @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* GANTT START */
+/* Milestone dates are point events: bars show variance, never invented duration. */
+.gantt-panel{margin-bottom:16px;min-width:0}
+.gantt-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.gantt-head h2{font-size:16px;margin:0}
+.gantt-note{font-size:11px;color:var(--ink-2);line-height:1.8;margin:10px 0}
+.gantt-legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px;color:var(--ink-2);margin:12px 0}
+.gantt-legend span{display:inline-flex;align-items:center;gap:6px}
+.gantt-key{width:9px;height:9px;display:inline-block;border:2px solid #9382b4;transform:rotate(45deg)}
+.gantt-key.actual{background:#459c7b;border-color:#459c7b;border-radius:50%;transform:none}
+.gantt-key.active{background:#9d86e8;border-color:#9d86e8;transform:none}
+.gantt-key.late{height:3px;width:15px;background:#c97358;border:0;transform:none}
+.gantt-grid{--label-width:260px;--today:50%;font-size:11px}
+.gantt-axis,.gantt-row{display:grid;grid-template-columns:var(--label-width) minmax(0,1fr);gap:16px}
+.gantt-axis{color:var(--ink-2);align-items:end;padding:8px 0 12px;border-bottom:1px solid var(--line)}
+.gantt-scale{position:relative;height:32px;margin:0 8px}
+.gantt-tick{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gantt-today-label{position:absolute;top:0;left:var(--today);transform:translateX(-50%);color:#a06780;font-size:10px;white-space:nowrap}
+.gantt-row{border-bottom:1px solid var(--line);align-items:stretch;min-height:70px}
+.gantt-row:last-child{border-bottom:0}
+.gantt-info{padding:11px 0;min-width:0;overflow-wrap:anywhere}
+.gantt-title{font-size:12px;font-weight:600;line-height:1.65}
+.gantt-meta{font-size:10px;color:var(--ink-2);line-height:1.8;margin-top:3px}
+.gantt-state{display:inline-block;border-radius:5px;padding:0 5px;margin-right:5px;background:#e9e5f1;color:#786791;font-size:10px;font-weight:500}
+.gantt-row.done .gantt-state{background:#dbefe5;color:#37785e}
+.gantt-row.active .gantt-state{background:#e8dffa;color:#7756ad}
+.gantt-alert{color:#a34e34;font-weight:600;margin-left:5px}
+.gantt-early{color:#37785e;margin-left:5px}
+.gantt-track{position:relative;margin:0 8px;min-width:0;background:repeating-linear-gradient(to right,transparent 0,transparent calc(25% - 1px),rgba(130,115,155,.12) calc(25% - 1px),rgba(130,115,155,.12) 25%)}
+.gantt-track:before{content:'';position:absolute;top:50%;left:0;right:0;border-top:1px solid rgba(130,115,155,.16)}
+.gantt-today{position:absolute;left:var(--today);top:0;bottom:0;border-left:1px dashed #b77b95;opacity:.7}
+.gantt-plan,.gantt-actual{position:absolute;top:50%;left:var(--point);width:10px;height:10px;transform:translate(-50%,-50%) rotate(45deg);border:2px solid #9382b4;background:#f6f3fa;z-index:2;box-sizing:border-box}
+.gantt-row.done .gantt-plan{border-color:#459c7b;background:#def0e7}
+.gantt-row.active .gantt-plan{border-color:#9875cc;background:#d8c4f0}
+.gantt-actual{border:2px solid #fff;background:#459c7b;border-radius:50%;width:11px;height:11px;transform:translate(-50%,-50%);z-index:3}
+.gantt-variance{position:absolute;top:calc(50% - 3px);height:6px;left:var(--from);width:var(--span);border-radius:4px;background:#85bda5}
+.gantt-variance.late{background:#d69276}
+.gantt-variance.overdue{background:repeating-linear-gradient(90deg,#d69276 0,#d69276 4px,transparent 4px,transparent 7px);height:4px;top:calc(50% - 2px)}
+.gantt-row.group .gantt-title{font-weight:800}
+.gantt-scope{font-size:10px;color:#5875a7;margin-left:5px}
+@media(max-width:720px){
+ .gantt-grid{--label-width: minmax(0,1fr)}
+ .gantt-axis{display:block;padding:0 0 8px}.gantt-axis-title{display:none}
+ .gantt-row{display:block;padding-bottom:10px}.gantt-info{padding:10px 0 2px}
+ .gantt-track{height:27px}.gantt-scale{margin:0 8px}
+ .gantt-note{font-size:10px}.gantt-legend{gap:6px 12px}
+}
+
+/* GANTT END */
 </style>
 </head>
 <body>
@@ -428,6 +478,13 @@
         <div class="tb"><div class="tb-fill" id="tbFill" style="width:0%"></div><div class="tb-dot" id="tbDot" style="left:0%"></div></div>
       </div>
     </div>
+
+    <section class="panel glass gantt-panel" aria-labelledby="ganttTitle">
+      <div class="gantt-head"><h2 id="ganttTitle">里程碑甘特图</h2><button type="button" class="chip" id="ganttPhase2" aria-controls="ganttChart">显示二期</button></div>
+      <p class="gantt-note">按计划日期定位里程碑；圆点为已记录的实际日期，连接条表示提前 / 延期，虚线条表示逾期至今天。源数据没有任务起止日期，图中不推算工期；实际未记录的完成项仅标示计划节点。</p>
+      <div class="gantt-legend"><span><i class="gantt-key"></i>计划节点</span><span><i class="gantt-key actual"></i>实际完成</span><span><i class="gantt-key active"></i>进行中</span><span><i class="gantt-key late"></i>延期 / 逾期</span></div>
+      <div id="ganttChart" class="gantt-grid" role="list" aria-label="里程碑计划与实际日期"></div>
+    </section>
 
     <div class="dcols">
       <div class="dcol">
@@ -1033,6 +1090,65 @@ function renderSide(){
 }
 
 /* ================= 详情渲染 ================= */
+
+/* GANTT START */
+function renderGantt(p, today){
+  var root=document.getElementById('ganttChart');
+  var button=document.getElementById('ganttPhase2');
+  var hasP2=p.milestones.some(function(m){return m.scope==='二期';});
+  button.hidden=!hasP2;
+  button.textContent=state.showP2?'隐藏二期':'显示二期';
+  button.classList.toggle('on',!!state.showP2);
+  button.setAttribute('aria-pressed',String(!!state.showP2));
+  button.onclick=function(){applyP2(!state.showP2);};
+  document.getElementById('togglePhase2').hidden=!hasP2;
+  // Validate calendar dates before positioning. Missing dates remain explicit text.
+  function valid(v){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return false;
+    var d=dateOnly(v),a=v.split('-').map(Number);
+    return d.getFullYear()===a[0]&&d.getMonth()===a[1]-1&&d.getDate()===a[2];
+  }
+  function stamp(v){var d=dateOnly(v);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate());}
+  var now=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
+  var rows=p.milestones.filter(function(m){return state.showP2||m.scope!=='二期';});
+  var dates=[];
+  rows.forEach(function(m){if(valid(m.date))dates.push(stamp(m.date));if(valid(m.actual))dates.push(stamp(m.actual));});
+  if(!dates.length){root.innerHTML='<p class="gantt-note">尚无可绘制的里程碑日期。</p>';return;}
+  // Today is a reference, not a fabricated project date; archive axes stay historical.
+  if(p.status!=='archived')dates.push(now);
+  var min=Math.min.apply(null,dates),max=Math.max.apply(null,dates);
+  var padding=Math.max(86400000,(max-min)*.035);
+  min-=padding;max+=padding;
+  function pos(t){return ((t-min)/(max-min)*100).toFixed(4)+'%';}
+  function label(t){var d=new Date(t);return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}
+  var todayInRange=now>=min&&now<=max;
+  root.style.setProperty('--today',pos(now));
+  var ticks='';
+  [0,.5,1].forEach(function(f){
+    var t=min+(max-min)*f;
+    ticks+='<span class="gantt-tick" style="left:'+f*100+'%;transform:'+(f===0?'none':f===1?'translateX(-100%)':'translateX(-50%)')+'">'+label(t)+'</span>';
+  });
+  var axis='<div class="gantt-axis"><div class="gantt-axis-title">里程碑 / 状态与日期</div><div class="gantt-scale">'+ticks+(todayInRange?'<span class="gantt-today-label">今天</span>':'')+'</div></div>';
+  root.innerHTML=axis+rows.map(function(m){
+    var plan=valid(m.date)?stamp(m.date):null;
+    var actual=valid(m.actual)?stamp(m.actual):null;
+    var status={done:'已完成',active:'进行中',todo:'未开始'}[m.status]||'状态未记录';
+    var delta=plan!==null&&actual!==null?Math.round((actual-plan)/86400000):null;
+    var over=plan!==null&&actual===null&&m.status!=='done'?Math.floor((now-plan)/86400000):0;
+    var badge=delta>0?'<span class="gantt-alert">延期 '+delta+' 天</span>':delta<0?'<span class="gantt-early">提前 '+(-delta)+' 天</span>':delta===0?'<span class="gantt-early">准时</span>':over>0?'<span class="gantt-alert">逾期 '+over+' 天</span>':'';
+    var text='计划 '+(plan!==null?m.date:'未记录')+' · 实际 '+(actual!==null?m.actual:m.status==='done'?'未记录':'—');
+    var marks=todayInRange?'<span class="gantt-today"></span>':'';
+    var end=actual!==null?actual:over>0?now:null;
+    if(plan!==null&&end!==null&&end!==plan){
+      marks+='<span class="gantt-variance '+(actual===null?'overdue':end>plan?'late':'')+'" style="--from:'+pos(Math.min(plan,end))+';--span:'+(Math.abs(end-plan)/(max-min)*100).toFixed(4)+'%"></span>';
+    }
+    if(plan!==null)marks+='<span class="gantt-plan" style="--point:'+pos(plan)+'"></span>';
+    if(actual!==null)marks+='<span class="gantt-actual" style="--point:'+pos(actual)+'"></span>';
+    return '<div class="gantt-row '+(m.status==='done'?'done':m.status==='active'?'active':'todo')+(m.group?' group':'')+'" role="listitem"><div class="gantt-info"><div class="gantt-title">'+esc(m.task)+(m.scope==='二期'?'<span class="gantt-scope">二期</span>':'')+(m.dod?'<span class="gantt-scope">DOD</span>':'')+'</div><div class="gantt-meta"><span class="gantt-state">'+status+'</span>'+badge+'<br>'+esc(text)+'</div></div><div class="gantt-track" aria-hidden="true" title="'+esc(m.task+' · '+status+' · '+text)+'">'+marks+'</div></div>';
+  }).join('');
+}
+
+/* GANTT END */
 function renderDetail(p){
   var today = new Date(); today.setHours(0,0,0,0);
   var dod = dateOnly(p.dodDate);
@@ -1072,6 +1188,7 @@ function renderDetail(p){
     document.getElementById("timebarWrap").classList.add("hidden");
   }
 
+  renderGantt(p, today);
   var ul = document.getElementById("msList");
   ul.innerHTML = "";
   p.milestones.forEach(function(m){
