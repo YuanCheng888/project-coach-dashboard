@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目组合看板 · Doris</title>
+<style>
+  :root{
+    --ink:#3a3550;
+    --ink-2:rgba(58,53,80,.62);
+    --ink-3:rgba(58,53,80,.42);
+    --glass:rgba(255,255,255,.55);
+    --glass-brd:rgba(255,255,255,.72);
+    --line:rgba(120,110,165,.13);
+    --radius:20px;
+    --shadow:0 10px 30px rgba(84,74,140,.10);
+    --sans:'Nunito','Segoe UI Variable Display','Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--sans);color:var(--ink);font-size:14px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+    background:
+      radial-gradient(1100px 620px at 8% -6%, #f7d9e9 0%, rgba(247,217,233,0) 55%),
+      radial-gradient(1000px 560px at 96% 3%, #d8e6fb 0%, rgba(216,230,251,0) 55%),
+      radial-gradient(1000px 620px at 90% 98%, #d6efe4 0%, rgba(214,239,228,0) 55%),
+      radial-gradient(900px 600px at 2% 94%, #e7dcf8 0%, rgba(231,220,248,0) 55%),
+      linear-gradient(135deg,#f6f2fb 0%,#eef4fc 48%,#f0f7f4 100%);
+    background-attachment:fixed;background-repeat:no-repeat;
+  }
+  a{color:#7b64d6;text-decoration:none}
+  ::selection{background:rgba(157,134,232,.25)}
+  .glass{
+    background:var(--glass);
+    -webkit-backdrop-filter:blur(20px) saturate(150%);
+    backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid var(--glass-brd);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  .hidden{display:none !important}
+  .shell{max-width:1048px;margin:0 auto;padding:22px 26px 60px}
+
+  /* ===== topbar ===== */
+  /* position+z-index 必须保留：topbar 的 backdrop-filter 会生成堆叠上下文，
+     若此处 z-index:auto，后面的 KPI 卡片（同样有 backdrop-filter）会按 DOM 顺序盖住 ⚙ 面板 */
+  .topbar{display:flex;align-items:center;gap:16px;padding:18px 24px;margin-bottom:18px;position:relative;z-index:50}
+  .brand h1{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+  .brand p{font-size:13px;color:var(--ink-2);margin-top:3px}
+  .topright{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .icbtn{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.7);color:var(--ink-2);cursor:pointer;transition:.14s;font-size:15px}
+  .icbtn:hover{background:rgba(255,255,255,.85);color:var(--ink)}
+  .count-chip{min-width:38px;height:38px;padding:0 11px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.7);font-weight:800;font-size:14px;cursor:default}
+  .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#b9a6ee,#8fc0f2);color:#fff;
+    font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(150,130,220,.35)}
+  .uname{font-weight:700;font-size:14px}
+
+  /* ===== kpi ===== */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px}
+  .kpi{padding:16px 16px 15px;display:flex;flex-direction:column;gap:10px}
+  .kpi-top{display:flex;align-items:center;gap:9px;color:var(--ink-2);font-size:12.5px;font-weight:700}
+  .kpi-ic{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.75);
+    display:flex;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0}
+  .kpi-num{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .kpi-sub{font-size:11.5px;color:var(--ink-3);margin-top:-4px}
+  .kpi-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.65);overflow:hidden;box-shadow:inset 0 1px 2px rgba(90,80,140,.14)}
+  .kpi-fill{height:100%;border-radius:99px}
+
+  /* gradient fills */
+  .g-rose{background:linear-gradient(90deg,#f6a8c6,#bda0f2)}
+  .g-violet{background:linear-gradient(90deg,#bda0f2,#8ec6f4)}
+  .g-mint{background:linear-gradient(90deg,#9fe3c4,#8ec6f4)}
+  .g-amber{background:linear-gradient(90deg,#f8c9a0,#f2a8c6)}
+  .g-lav{background:linear-gradient(90deg,#c9b8f5,#9fd8e8)}
+
+  /* ===== columns ===== */
+  .cols{display:grid;grid-template-columns:1.7fr 1fr;gap:16px;align-items:start}
+  .col-side{display:flex;flex-direction:column;gap:16px}
+  .panel{padding:18px 20px 20px}
+  .sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .sec-head h2{font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+  .sec-head .muted{margin-left:auto;font-size:12px;color:var(--ink-3);font-weight:600}
+
+  /* ===== project cards ===== */
+  .pcards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .pcard{padding:16px;border-radius:16px;cursor:pointer;
+    background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.72);
+    box-shadow:0 6px 18px rgba(84,74,140,.07);transition:transform .14s,box-shadow .14s,background .14s}
+  .pcard:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(84,74,140,.15);background:rgba(255,255,255,.72)}
+  .pcard-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:4px}
+  .pcard-ic{width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.72);display:flex;align-items:center;
+    justify-content:center;font-size:18px;flex-shrink:0}
+  .pcard-name{font-size:14.5px;font-weight:800;line-height:1.35}
+  .pcard-lead{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+  .pcard-pill{margin-left:auto;flex-shrink:0}
+  .pcard-bar{height:9px;border-radius:99px;background:rgba(255,255,255,.68);overflow:hidden;margin:13px 0 8px;
+    box-shadow:inset 0 1px 2px rgba(90,80,140,.14)}
+  .pcard-fill{height:100%;border-radius:99px;transition:width .6s ease}
+  .pcard-foot{display:flex;align-items:baseline;gap:8px}
+  .pcard-pct{font-size:16px;font-weight:800}
+  .pcard-due{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-weight:600}
+
+  /* ===== pills ===== */
+  .pill{display:inline-block;font-size:11.5px;font-weight:800;line-height:1.5;padding:2px 10px;border-radius:99px;white-space:nowrap}
+  .pill.active{background:rgba(197,160,235,.32);color:#6b3f8f;border:1px solid rgba(197,160,235,.5)}
+  .pill.archived{background:rgba(160,155,185,.22);color:#5b5678;border:1px solid rgba(160,155,185,.4)}
+  .pill.high{background:rgba(244,160,160,.32);color:#a13b3b;border:1px solid rgba(244,160,160,.5)}
+  .pill.mid{background:rgba(246,201,150,.34);color:#96601a;border:1px solid rgba(246,201,150,.52)}
+  .pill.low{background:rgba(170,165,195,.22);color:#5b5678;border:1px solid rgba(170,165,195,.4)}
+  .pill.mint{background:rgba(150,225,195,.32);color:#22684c;border:1px solid rgba(150,225,195,.5)}
+
+  /* ===== activity / reminders ===== */
+  .act-list{list-style:none;display:flex;flex-direction:column;gap:13px}
+  .act-item{display:flex;gap:11px;align-items:flex-start}
+  .act-dot{width:28px;height:28px;border-radius:10px;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.75);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--ink-2)}
+  .act-txt{font-size:12.8px;font-weight:600;line-height:1.5}
+  .act-txt .p{color:var(--ink-3);font-weight:600}
+  .act-date{font-size:11px;color:var(--ink-3);margin-top:2px}
+
+  /* ===== bottom bar ===== */
+  .bottombar{display:flex;align-items:center;gap:12px;padding:12px 16px;margin-top:18px;flex-wrap:wrap;position:sticky;bottom:14px;z-index:5}
+  .chipline{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.65);color:var(--ink-2);
+    font-family:var(--sans);font-size:13px;font-weight:800;padding:7px 14px;border-radius:99px;cursor:pointer;transition:.14s}
+  .chip:hover{background:rgba(255,255,255,.8);color:var(--ink)}
+  .chip.on{background:linear-gradient(135deg,#bda0f2,#8ec6f4);color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(140,120,220,.32)}
+  select.sort{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--ink-2);background:rgba(255,255,255,.55);
+    border:1px solid rgba(255,255,255,.7);border-radius:99px;padding:8px 14px;outline:none;cursor:pointer}
+  .search{position:relative;margin-left:auto}
+  .search input{font-family:var(--sans);font-size:13px;color:var(--ink);background:rgba(255,255,255,.55);
+    border:1px solid rgba(255,255,255,.7);border-radius:99px;padding:9px 16px 9px 34px;width:250px;outline:none;transition:.14s}
+  .search input:focus{background:#fff;border-color:rgba(160,150,230,.6)}
+  .search input::placeholder{color:var(--ink-3)}
+  .search .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-3);display:flex}
+
+  /* ===== detail ===== */
+  .back{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:99px;font-family:var(--sans);
+    font-size:13px;font-weight:800;color:var(--ink-2);cursor:pointer;background:rgba(255,255,255,.5);
+    border:1px solid rgba(255,255,255,.72);box-shadow:0 4px 12px rgba(84,74,140,.08)}
+  .back:hover{background:rgba(255,255,255,.85);color:var(--ink)}
+  .crumb{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-3);margin:14px 0 12px;font-weight:600}
+  .crumb a{cursor:pointer;color:var(--ink-3)}
+  .crumb a:hover{color:var(--ink)}
+  .dhead{padding:22px 24px;margin-bottom:16px}
+  .dhead-row{display:flex;align-items:flex-start;gap:14px}
+  .dhead .ic{width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.72);display:flex;align-items:center;
+    justify-content:center;font-size:27px;flex-shrink:0}
+  .dhead h1{font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.25}
+  .dhead .sub{font-size:12.8px;color:var(--ink-2);margin-top:5px;max-width:780px}
+  .ptiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+  .ptile{background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.72);border-radius:14px;padding:12px 14px;
+    display:flex;flex-direction:column;gap:5px}
+  .pt-k{font-size:11.5px;color:var(--ink-3);font-weight:700}
+  .pt-v{font-size:13.5px;font-weight:700;line-height:1.45}
+  .pt-v b{font-size:22px;font-weight:800}
+  .timebar-wrap{padding:18px 0 2px}
+  .tb-head{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-bottom:9px;flex-wrap:wrap;gap:8px;font-weight:600}
+  .tb{height:7px;border-radius:99px;background:rgba(255,255,255,.62);position:relative;box-shadow:inset 0 1px 2px rgba(90,80,140,.14)}
+  .tb-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#bda0f2,#8ec6f4);transition:width .6s ease}
+  .tb-dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:#fff;border:2.5px solid #9d86e8;
+    transform:translate(-50%,-50%);box-shadow:0 2px 6px rgba(120,100,200,.35)}
+  .dcols{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start}
+  .dcol{display:flex;flex-direction:column;gap:16px}
+
+  /* milestones */
+  .ms{list-style:none}
+  .ms-row{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .ms-row:last-child{border-bottom:none}
+  .ms-box{width:20px;height:20px;border-radius:7px;flex-shrink:0;margin-top:1px;background:rgba(255,255,255,.62);
+    border:1.5px solid rgba(120,110,165,.32);display:flex;align-items:center;justify-content:center;
+    font-size:12px;color:#fff;font-weight:800}
+  .ms-row.done .ms-box{background:linear-gradient(135deg,#9fe0c0,#8ec6f4);border-color:transparent}
+  .ms-row.active .ms-box{border:2px solid #9d86e8;box-shadow:0 0 0 4px rgba(157,134,232,.18)}
+  .ms-main{flex:1}
+  .ms-task{font-size:13.8px;font-weight:700;line-height:1.45}
+  .ms-row.done .ms-task{color:var(--ink-2);text-decoration:line-through;text-decoration-color:rgba(120,110,165,.4)}
+  .ms-meta{font-size:11.5px;color:var(--ink-3);margin-top:3px;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+  .ms-meta .dot{opacity:.5}
+  /* 计划 / 实际 双日期 */
+  .ms-d{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:1.5px 7px;border-radius:6px;
+    background:rgba(120,110,165,.10);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ms-d b{font-weight:800;font-size:9.5px;opacity:.6;letter-spacing:.3px}
+  .ms-d.ok{background:rgba(118,204,164,.24);color:#1d7a52}
+  .ms-d.late{background:rgba(240,152,120,.26);color:#a8390f}
+  .ms-d.over{background:rgba(232,96,84,.22);color:#9c2519}
+  .ms-d.none{background:rgba(120,110,165,.07);color:var(--ink-3)}
+  .ms-d.late b,.ms-d.over b{opacity:.75}
+  .ms-gap{font-size:10.5px;font-weight:800;color:#a8390f;background:rgba(240,152,120,.18);padding:1px 6px;border-radius:6px}
+  .ms-row.phase2{opacity:.62}
+  .tag{display:inline-block;font-size:10.5px;font-weight:800;padding:1px 8px;border-radius:99px;margin-left:6px;vertical-align:1px}
+  .tag.phase2{background:rgba(160,180,240,.32);color:#3f5fa0}
+  .tag.dod{background:rgba(246,201,150,.42);color:#8a5a12}
+
+  /* risks */
+  .risk{padding:14px 0 14px 14px;border-bottom:1px solid var(--line);border-left:3px solid transparent;margin-left:-14px}
+  .risk:last-child{border-bottom:none}
+  .risk.risk-high{border-left-color:#ef9a9a}
+  .risk.risk-mid{border-left-color:#f3c07a}
+  .risk.risk-low{border-left-color:rgba(120,110,165,.22)}
+  .risk.closed{opacity:.5}
+  .risk-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .risk-title{font-size:13.8px;font-weight:700;line-height:1.45}
+  .risk-meta{font-size:11.5px;color:var(--ink-3);margin-top:6px}
+  .risk-desc{font-size:12.6px;color:var(--ink-2);margin-top:8px;line-height:1.68}
+
+  /* team */
+  .team-list{display:flex;flex-wrap:wrap;gap:8px}
+  .team-item{font-size:12.5px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.72);border-radius:99px;padding:5px 12px}
+  .team-item b{font-weight:800}
+  .team-item span{color:var(--ink-3);font-size:11.5px;margin-left:6px}
+
+  /* logs */
+  .log-entry{padding:14px 0;border-bottom:1px solid var(--line)}
+  .log-entry:last-child{border-bottom:none}
+  .log-date{font-size:11.5px;font-weight:800;color:#8a6fd0;margin-bottom:5px}
+  .log-title{font-size:13.8px;font-weight:800;margin-bottom:7px}
+  .log-entry ul{list-style:none}
+  .log-entry li{font-size:12.6px;color:var(--ink-2);padding-left:15px;position:relative;margin-bottom:5px;line-height:1.62}
+  .log-entry li::before{content:"";position:absolute;left:3px;top:8px;width:5px;height:5px;border-radius:50%;background:rgba(150,135,210,.6)}
+
+  .empty,.empty-note{color:var(--ink-3);font-size:12.6px;padding:14px 0}
+  .empty-note{padding:40px 16px;text-align:center}
+  .err{display:none;margin:0 0 16px;padding:12px 16px;border-radius:14px;background:rgba(244,160,160,.3);
+    border:1px solid rgba(244,160,160,.5);color:#8f3535;font-size:13px;font-weight:700}
+  footer{margin-top:22px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-3);padding:0 4px}
+
+  /* ===== settings panel ===== */
+  .settings-wrap{position:relative}
+  button.icbtn{padding:0;font-family:var(--sans);font-size:15px;line-height:1}
+  .icbtn.on{background:linear-gradient(135deg,#bda0f2,#8ec6f4);color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(140,120,220,.32)}
+  .setpanel{position:absolute;right:0;top:calc(100% + 10px);width:302px;padding:14px;z-index:60;border-radius:16px;
+    background:rgba(255,255,255,.95);border-color:rgba(255,255,255,.98);
+    -webkit-backdrop-filter:blur(30px) saturate(160%);backdrop-filter:blur(30px) saturate(160%);
+    box-shadow:0 20px 48px rgba(84,74,140,.24);text-align:left}
+  .set-h{font-size:10.5px;font-weight:800;color:var(--ink-3);letter-spacing:.08em;margin:13px 0 8px}
+  .set-h:first-child{margin-top:0}
+  .set-jump{display:flex;flex-direction:column;gap:6px}
+  .set-jitem{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:11px;cursor:pointer;
+    background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.7);font-size:12.8px;font-weight:700;transition:.14s}
+  .set-jitem:hover{background:rgba(255,255,255,.88);transform:translateX(1px)}
+  .set-jitem .ji-ic{font-size:15px;flex-shrink:0}
+  .set-jitem .ji-nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .set-jitem .pill{margin-left:auto;flex-shrink:0}
+  .set-jitem .ji-cnt{margin-left:auto;font-size:11px;color:var(--ink-3);font-weight:700;flex-shrink:0}
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 2px;font-size:12.8px;
+    font-weight:700;cursor:pointer;user-select:none}
+  .set-row input[type=checkbox]{-webkit-appearance:none;appearance:none;width:36px;height:20px;border-radius:99px;
+    background:rgba(120,110,165,.26);position:relative;cursor:pointer;transition:.16s;border:none;outline:none;flex-shrink:0;margin:0}
+  .set-row input[type=checkbox]::after{content:"";position:absolute;top:2.5px;left:2.5px;width:15px;height:15px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(80,70,130,.32);transition:.16s}
+  .set-row input[type=checkbox]:checked{background:linear-gradient(135deg,#bda0f2,#8ec6f4)}
+  .set-row input[type=checkbox]:checked::after{left:18.5px}
+  .set-foot{display:flex;align-items:center;gap:8px;margin-top:13px;padding-top:11px;border-top:1px solid var(--line)}
+  .set-foot .chip{padding:6px 12px;font-size:12px}
+  .set-meta{margin-left:auto;font-size:10.5px;color:var(--ink-3);font-weight:700;white-space:nowrap}
+
+  /* ===== toast ===== */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);opacity:0;pointer-events:none;
+    background:rgba(58,53,80,.92);color:#fff;font-size:12.6px;font-weight:700;padding:10px 18px;border-radius:99px;
+    z-index:60;transition:opacity .2s,transform .2s;box-shadow:0 12px 28px rgba(60,50,110,.32);max-width:82vw;text-align:center}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ===== compact mode ===== */
+  body.compact .shell{padding:12px 22px 48px}
+  body.compact .topbar{padding:12px 20px;margin-bottom:12px}
+  body.compact .brand h1{font-size:22px}
+  body.compact .kpis{gap:10px;margin-bottom:12px}
+  body.compact .kpi{padding:12px 13px 11px;gap:7px}
+  body.compact .kpi-num{font-size:24px}
+  body.compact .cols,body.compact .dcols{gap:12px}
+  body.compact .col-side{gap:12px}
+  body.compact .panel{padding:14px 16px 15px}
+  body.compact .pcards{gap:10px}
+  body.compact .pcard{padding:12px}
+  body.compact .pcard-bar{margin:9px 0 6px}
+  body.compact .ms-row{padding:8px 0}
+  body.compact .risk{padding:10px 0 10px 12px}
+  body.compact .log-entry{padding:10px 0}
+  body.compact .act-list{gap:10px}
+  body.compact .dhead{padding:16px 20px}
+  body.compact .ptiles{gap:10px;margin-top:14px}
+
+  /* ===== reduced motion ===== */
+  body.nomotion *{transition:none !important;animation:none !important}
+  body.nomotion .pcard:hover{transform:none}
+
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
+    .cols{grid-template-columns:1fr}
+    .dcols{grid-template-columns:1fr}
+  }
+  @media (max-width:720px){
+    .shell{padding:14px 14px 48px}
+    .topbar{flex-wrap:wrap}
+    .brand h1{font-size:21px}
+    .kpis{grid-template-columns:repeat(2,1fr);gap:12px}
+    .pcards{grid-template-columns:1fr}
+    .ptiles{grid-template-columns:1fr 1fr}
+    .bottombar{position:static}
+    .search{margin-left:0;width:100%}
+    .search input{width:100%}
+    /* 窄屏：面板改锚到整个右上角工具区（.topright），否则锚在齿轮上会因右侧还有
+       头像/用户名而向左溢出屏幕（420px 下实测 left=-14）。 */
+    .topright{position:relative}
+    .settings-wrap{position:static}
+    .setpanel{right:0;width:min(302px,calc(100vw - 28px))}
+  }
+
+  /* Local replica: same source data, accessible navigation and preview. */
+  .cols > *, .dcols > *, .ms-main, .dhead-row > div{min-width:0}
+  .pcard{position:relative}
+  .pcard:focus-visible,.chip:focus-visible,.preview-btn:focus-visible,.set-jitem:focus-visible,
+  .icbtn:focus-visible,.back:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #9980d6;outline-offset:3px}
+  .preview-btn{font:inherit;font-size:11px;color:#8971bb;border:0;background:transparent;padding:3px 5px;border-radius:6px;cursor:pointer}
+  .preview-btn:hover{background:#e8def6}
+  .dod-explain{font-size:12px;color:var(--ink-2);margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .dod-explain summary{cursor:pointer;font-weight:700}
+  .dod-explain p{margin-top:8px;line-height:1.8}
+  .team-item{overflow-wrap:anywhere;max-width:100%;border-radius:14px}
+  .empty-note{grid-column:1 / -1}
+  .preview-dialog{border:1px solid #ffffffcc;border-radius:22px;padding:0;width:min(996px,calc(100vw - 32px));max-height:90vh;margin:auto;color:var(--ink);background:#f0f2fa;box-shadow:0 28px 100px #39304a45}
+  .preview-dialog::backdrop{background:#29233f55;backdrop-filter:blur(5px)}
+  .preview-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:12px;padding:14px 20px;background:#f5f3fbeF;border-bottom:1px solid var(--line)}
+  .preview-head strong{margin-right:auto;font-size:14px}
+  .preview-body{padding:18px}
+  .preview-body #backBtn,.preview-body .crumb{display:none}
+  .preview-body .dcols{grid-template-columns:1.5fr 1fr}
+  .preview-body .ptiles{grid-template-columns:1fr 1fr}
+  body:has(.preview-dialog[open]){overflow:hidden}
+  @media(max-width:720px){
+    .topbar{padding:16px}.topright{margin-left:0}.brand p{font-size:11px}
+    .pcard-top{gap:9px}.panel{padding:16px}.dhead{padding:18px}
+    .dhead h1{font-size:20px}.dhead-row{gap:10px}.dhead .ic{width:40px;height:40px;font-size:23px}
+    .preview-body .dcols{grid-template-columns:1fr}.preview-body{padding:10px}
+    .preview-head{padding:12px;gap:6px}.preview-head .back{font-size:11px;padding:7px 10px}
+    .crumb{flex-wrap:wrap}.ptile{min-width:0;padding:10px}.pt-v{overflow-wrap:anywhere}
+    .setpanel{right:auto;left:0;width:min(302px,calc(100vw - 64px))}
+  }
+  @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header class="topbar glass">
+    <div class="brand">
+      <h1>项目组合看板</h1>
+      <p id="brandSub">—</p>
+    </div>
+    <div class="topright">
+      <span class="count-chip" id="countChip" title="项目数">0</span>
+      <div class="settings-wrap">
+        <button type="button" class="icbtn" id="setBtn" title="设置与快速跳转" aria-haspopup="true" aria-expanded="false">⚙</button>
+        <div class="setpanel glass hidden" id="setPanel">
+          <div class="set-h">快速跳转</div>
+          <div class="set-jump" id="setJump"></div>
+          <div class="set-h">显示</div>
+          <label class="set-row"><span>显示二期里程碑</span><input type="checkbox" id="setP2"></label>
+          <label class="set-row"><span>紧凑模式</span><input type="checkbox" id="setCompact"></label>
+          <label class="set-row"><span>减少动效</span><input type="checkbox" id="setMotion"></label>
+          <div class="set-foot">
+            <button type="button" class="chip" id="setReset">重置筛选</button>
+            <span class="set-meta" id="setMeta">快照 —</span>
+          </div>
+        </div>
+      </div>
+      <span class="avatar">D</span>
+      <span class="uname">Doris</span>
+    </div>
+  </header>
+
+  <div id="errorBox" class="err"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ============ 总览 ============ -->
+  <section id="viewAll">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="cols">
+      <div class="panel glass">
+        <div class="sec-head"><h2>项目</h2><span class="muted" id="summary" aria-live="polite">—</span></div>
+        <div class="pcards" id="cards"></div>
+      </div>
+
+      <div class="col-side">
+        <section class="panel glass">
+          <div class="sec-head"><h2>近期动态</h2></div>
+          <ul class="act-list" id="activityList"></ul>
+        </section>
+        <section class="panel glass">
+          <div class="sec-head"><h2>提醒</h2></div>
+          <ul class="act-list" id="remindList"></ul>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 单项目详情 ============ -->
+  <div id="detailHost"><section id="viewOne" class="hidden">
+    <button class="back" id="backBtn">← 返回总览</button>
+    <div class="crumb">
+      <a href="#/all" data-go="all">项目组合总览</a><span>/</span><span id="crumbName">—</span>
+    </div>
+
+    <div class="dhead glass">
+      <div class="dhead-row">
+        <span class="ic" id="dIcon">📁</span>
+        <div>
+          <h1 id="dName">—</h1>
+          <div class="sub" id="dSub">—</div>
+        </div>
+      </div>
+
+      <div class="ptiles">
+        <div class="ptile"><span class="pt-k">状态</span><span class="pt-v" id="ppStatus">—</span></div>
+        <div class="ptile"><span class="pt-k">成功定义 · DOD</span><span class="pt-v" id="ppDod">—</span></div>
+        <div class="ptile"><span class="pt-k">距 DOD</span><span class="pt-v"><b id="ppDays">—</b><span id="ppDaysUnit"></span></span></div>
+        <div class="ptile"><span class="pt-k">下次查岗</span><span class="pt-v" id="ppNext">—</span></div>
+      </div>
+
+      <details class="dod-explain"><summary>成功定义与交付口径</summary><p id="dodDetail"></p></details>
+      <div class="timebar-wrap" id="timebarWrap">
+        <div class="tb-head"><span id="tbStart">—</span><span id="tbNow">—</span><span id="tbEnd">—</span></div>
+        <div class="tb"><div class="tb-fill" id="tbFill" style="width:0%"></div><div class="tb-dot" id="tbDot" style="left:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="dcols">
+      <div class="dcol">
+        <section class="panel glass">
+          <div class="sec-head"><h2>关键里程碑</h2><button class="chip" id="togglePhase2" style="margin-left:auto">显示二期</button></div>
+          <ul class="ms" id="msList"></ul>
+        </section>
+        <section class="panel glass">
+          <div class="sec-head"><h2>进度日志</h2><span class="muted">最新在上</span></div>
+          <div id="logList"></div>
+        </section>
+      </div>
+
+      <div class="dcol">
+        <section class="panel glass">
+          <div class="sec-head"><h2>风险与问题</h2></div>
+          <div class="chipline" id="riskChips" style="margin-bottom:8px">
+            <button class="chip on" data-rf="all">全部</button>
+            <button class="chip" data-rf="open">未结</button>
+            <button class="chip" data-rf="high">高危</button>
+          </div>
+          <div id="riskList"></div>
+        </section>
+        <section class="panel glass">
+          <div class="sec-head"><h2>团队</h2></div>
+          <div class="team-list" id="teamList"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- ============ 底部筛选条 ============ -->
+  <div class="bottombar glass" id="bottombar">
+    <div class="chipline" id="statusChips">
+      <button class="chip on" data-st="all">全部</button>
+      <button class="chip" data-st="active">进行中</button>
+      <button class="chip" data-st="archived">已归档</button>
+      <button class="chip" data-st="highrisk">仅高危</button>
+    </div>
+    <select class="sort" id="sortSelect" aria-label="项目排序">
+      <option value="dod">DOD 最紧急</option>
+      <option value="progress">完成度最高</option>
+      <option value="risk">未结风险最多</option>
+      <option value="name">名称</option>
+    </select>
+    <div class="search">
+      <span class="si"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></span>
+      <input id="searchInput" aria-label="搜索项目、负责人或风险" type="search" placeholder="搜索项目 / 负责人 / 风险">
+    </div>
+  </div>
+
+  <footer>
+    <span id="snapTime">数据快照：—</span>
+    <span>项目有更新时说一句「刷新看板」，我会重新生成</span>
+  </footer>
+</div>
+
+<dialog id="previewDialog" class="preview-dialog" aria-labelledby="previewTitle">
+  <div class="preview-head"><strong id="previewTitle">项目详情预览</strong><button class="back" id="previewFull">全页查看 ↗</button><button class="icbtn" id="previewClose" aria-label="关闭项目预览">×</button></div>
+  <div class="preview-body" id="previewBody"></div>
+</dialog>
+<script>
+/* ================= 数据（由「Doris 的项目教练」从项目档案生成） ================= */
+const SNAPSHOT = "2026-09-20";
+
+const PROJECTS = [
+  {
+    id:"自研款泳池投药器开模",
+    icon:"🏊",
+    name:"自研款泳池投药器开模",
+    status:"active",
+    sub:"关联上架项目：自研款泳池漂浮器 IPACK　·　阶段：执行　·　项目经理：Doris",
+    startDate:"2026-08-06",
+    dodDate:"2026-12-09",
+    dodText:"2026-12-09 前完成「小 PP 500 套」出货",
+    dodDetail:"即：开模合格（T1，含包装盒）+ 小 PP 100% 合格质检通过 + 出仓发出。达到这一条，本项目即判定成功。",
+    nextCheckin:"2026-09-21",
+    milestones:[
+      {task:"产品推介会", dept:"产品部", owner:"唐明帅", date:"2026-08-06", scope:"本项目", status:"done"},
+      {task:"产品研发立项会", dept:"产品部", owner:"唐明帅", date:"2026-08-28", scope:"本项目", status:"done"},
+      {task:"产品内部评审会", dept:"产品部", owner:"唐明帅", date:"2026-08-28", scope:"本项目", status:"done"},
+      {task:"T0 开始试模（含国庆假期）", dept:"产品部", owner:"唐明帅", date:"2026-10-08", scope:"本项目", status:"active"},
+      {task:"T1 开模完成且合格（含包装盒）", dept:"产品部", owner:"唐明帅", date:"2026-11-09", scope:"本项目", status:"todo"},
+      {task:"产品试用报告", dept:"产品部", owner:"唐明帅", date:"2026-11-11", scope:"本项目", status:"todo"},
+      {task:"产品上架立项会", dept:"产品部", owner:"唐明帅", date:"2026-11-12", scope:"本项目", status:"todo"},
+      {task:"小 PP 制作完成（500 套）", dept:"采购部", owner:"周守健", date:"2026-12-03", scope:"本项目", status:"todo", dod:true},
+      {task:"小 PP 质检合格（100%）", dept:"风控中心", owner:"陆擎天", date:"2026-12-04", scope:"本项目", status:"todo", dod:true},
+      {task:"首批出仓（小 PP 500 套）", dept:"亚马逊业务 2 部", owner:"黄苏杨", date:"2026-12-09", scope:"本项目", status:"todo", dod:true},
+      {task:"大货制作完成（3,000 套）", dept:"采购部", owner:"周守健", date:"2026-12-29", scope:"二期", status:"todo"},
+      {task:"首批上架", dept:"亚马逊业务 2 部", owner:"黄苏杨", date:"2027-01-13", scope:"二期", status:"todo"}
+    ],
+    risks:[
+      {id:"#2", title:"T0 → T1 试模 / 改模超期", sev:"高", status:"open", cat:"技术", owner:"唐明帅 / 模具厂 迈叶", due:"T0 试模后立即评估改模轮次", desc:"T0 目标 10-08，T1 目标 11-09，中间仅 1 个月。试模/改模是最不可控环节，T1 一滑则小 PP 全链（12-03 / 12-04 / 12-09）后移，直接威胁本项目成功。本项目头号风险。"},
+      {id:"#4", title:"小 PP 100% 合格质量门", sev:"高", status:"open", cat:"质量 / 技术", owner:"陆擎天（风控）/ 周守健（采购）", due:"T1 合格后即排小 PP 试产，质检提前介入", desc:"小 PP 500 套必须 100% 合格才能出仓，是 DOD 的前置质量门。一旦有不良，返工将推后 12-09 出仓。"},
+      {id:"#1", title:"二期：小PP上架零缓冲，撞春节停产", sev:"中", status:"open", cat:"计划 / 外部依赖", owner:"黄苏杨 + 项目经理", due:"二期阶段锁定订舱与出仓日期", desc:"2027-01-13 上架 = 小PP 500 套上架（非大货）。小PP出货 DOD 12-09 + 海运 35–45 天 ⇒ 到仓 2027-01-13~01-23（快船 35 天恰好对上）。零缓冲：12-09 滑期即撞春节停产窗口（2027-01-22~02-20）。仅影响明年上架，不阻塞本项目 DOD。"},
+      {id:"#5", title:"涉水材料合规待确认（已降级）", sev:"中", status:"open", cat:"外部依赖 / 合规", owner:"张俊（结构）/ 黄苏杨（运营）", due:"T1 前确认材料清单并核对 Amazon 类目要求", desc:"产品不带电 → 排除 FCC/UL 电气认证。接触泳池水 → 仅需确认材料安全声明 / 加州 Prop 65 / Amazon 类目要求，无强制长周期认证。"},
+      {id:"#6", title:"包装盒 / 说明书 / 拍摄排期", sev:"中", status:"open", cat:"计划", owner:"唐明帅（产品）/ 黄苏杨（运营）", due:"11 月内定稿包装盒与拍摄排期", desc:"T1 已含包装盒；说明书可后置但上架前须齐；主图 / 详情页拍摄易被忽略。"},
+      {id:"#3", title:"12/09 首批出仓货量澄清", sev:"低", status:"closed", cat:"计划 / 逻辑一致性", owner:"项目经理", due:"已确认", desc:"已澄清：12-09 出仓 = 小 PP 500 套；大货 3,000 套 12-29 完成为另批次。两批货，无矛盾。"}
+    ],
+    team:[
+      {name:"Doris", role:"项目经理"},{name:"唐明帅", role:"产品 / 开模"},
+      {name:"迈叶", role:"模具厂（老供应商）"},{name:"张俊", role:"结构 / 工程"},
+      {name:"周守健", role:"量产 / 采购"},{name:"陆擎天", role:"质检 / 风控"},
+      {name:"黄苏杨", role:"运营 / 上架"}
+    ],
+    logs:[
+      {date:"2026-09-16", title:"成功定义重构（重要）", points:[
+        "确认 DOD = 2026-12-09 前小 PP 500 套出货；12-09 首批出仓即小 PP 500 套",
+        "1/13 上架划为二期 / 明年项目，单列监控，不计入本项目成功判定",
+        "头号风险改为 T0→T1 试模超期（#2）与小 PP 100% 合格门（#4）",
+        "风险 #3（12/09 货量矛盾）已澄清关闭；open_issues 6 → 5"]},
+      {date:"2026-09-16", title:"对齐真实进度表 + 术语更正", points:[
+        "术语更正：T0 = 开始试模；T1 = 开模完成且合格（含包装盒，可无说明书）",
+        "导入原始进度表 13 条（schedule.md），里程碑以其为准",
+        "新增成员：陆擎天（风控中心）、唐明帅（产品部）"]},
+      {date:"2026-09-16", title:"补充章程信息", points:[
+        "负责人 / 供应商确认：迈叶、张俊、周守健、黄苏杨",
+        "成功标准：量产良率 ≥ 97%，小 PP 100% 合格，首批 3,000 套，单件成本 ≤ ¥7.6",
+        "产品不带电 → 电气认证风险排除","渠道确认：Amazon 美国站 FBA"]}
+    ]
+  },
+  {
+    id:"厨房水槽地漏金属滤网开模",
+    icon:"🚰",
+    name:"厨房水槽地漏金属滤网开模",
+    status:"active",
+    sub:"老品升级 · 材质：304 不锈钢（食品接触合规）· 供应商：润琪（合作过）· 阶段：开模 · 项目经理：Doris",
+    startDate:"2026-07-24",
+    dodDate:"2026-10-17",
+    dodText:"2026-10-17 前通过「小 PP 确认」（DOD 已确认）",
+    dodDetail:"即：开模合格（T1，09-22）+ 小 PP 确认通过（10-17，25 天窗口含国庆假期，风控中心 陆擎天）。下游：首批出仓 10-28 → 上架 12-02（海运正班船，出仓到上架零缓冲）。",
+    nextCheckin:"2026-09-21",
+    milestones:[
+      {task:"开模启动", dept:"产品部", owner:"张昌德", date:"2026-07-24", scope:"本项目", status:"done"},
+      {task:"T0 开始试模（已实际开始）", dept:"产品部", owner:"张昌德", date:"2026-09-07", scope:"本项目", status:"active"},
+      {task:"T1 开模完成且合格", dept:"产品部", owner:"张昌德", date:"2026-09-22", scope:"本项目", status:"todo"},
+      {task:"小 PP 确认（25 天含国庆假期）", dept:"风控中心", owner:"陆擎天", date:"2026-10-17", scope:"本项目", status:"todo", dod:true},
+      {task:"首批出仓", dept:"亚马逊业务 2 部", owner:"陈胡位", date:"2026-10-28", scope:"二期", status:"todo"},
+      {task:"上架", dept:"亚马逊业务 2 部", owner:"陈胡位", date:"2026-12-02", scope:"二期", status:"todo"}
+    ],
+    risks:[
+      {id:"#1", title:"T1 窗口极紧（仅 5 天）→ 下游全链无缓冲", sev:"高", status:"open", cat:"进度 / 技术", owner:"张昌德 / 模具厂 润琪", due:"立即向张昌德 / 润琪确认试模进展与预计合格时间", desc:"T0（计划 09-07）已实际开始——任务表未标完成故显示逾期 10 天，Doris 于 09-17 确认，并非未启动。真正约束是 T1（开模完成且合格）定在 09-22、距今仅 5 天，且 T1 → 小 PP 确认（DOD 终点 10-17）之间无富余。老品升级试模轮次通常较少，5 天有可能守住；但一旦需要修模，T1 与 DOD 立刻连锁后移。"},
+      {id:"#2", title:"出仓 → 上架零缓冲", sev:"高", status:"open", cat:"物流 / 计划", owner:"陈胡位 + 项目经理", due:"出仓前锁定订舱与船期", desc:"头程已定海运正班船（35–45 天）。首批出仓 10-28 + 最快 35 天 = 12-02，正好等于任务表上架日，零富余。船期延一天、堵港或甩柜，上架即滑到 12 月中下旬。仅影响下游上架，不阻塞本项目 10-17 的 DOD。"},
+      {id:"#3", title:"小 PP 确认窗口含国庆假期", sev:"中", status:"open", cat:"进度 / 计划", owner:"陆擎天（风控中心）", due:"T1 合格后立即排小 PP，质检提前介入", desc:"窗口 09-22 → 10-17 共 25 天，含国庆假期，有效工作日约 18 天；T1 一旦滑期该窗口被压缩且无缓冲。"},
+      {id:"#4", title:"老品升级的兼容性风险（待确认升级点）", sev:"中", status:"open", cat:"技术 / 范围", owner:"张昌德 / 润琪", due:"T1 前明确升级点清单与兼容性验证方式", desc:"老品升级可沿用既有结构（试模风险低于全新开发），但存在反向风险：沿用旧尺寸导致与既有水槽 / 下水口配件不适配；升级点（孔径、材质、结构强度）变化引发既有配件不兼容。"},
+      {id:"#5", title:"材质已确认 304 不锈钢 · 仅剩文件类合规", sev:"低", status:"open", cat:"外部依赖 / 合规", owner:"张昌德（产品）/ 陈胡位（运营）", due:"出仓前备好材料声明与类目资料", desc:"材质牌号已于 09-17 由 Doris 确认：304 不锈钢，具备食品接触合规功能，无长周期强制认证。主要不确定性消除，降级为中→低。剩余为文件类待办：材料清单与食品接触材料声明、加州 Prop 65、Amazon 对应类目要求，可并入上架资料准备。"},
+      {id:"#6", title:"量化成功标准未定", sev:"中", status:"open", cat:"范围 / 计划", owner:"Doris（项目经理）", due:"立项当周补全", desc:"DOD 口径已于 09-17 确认（小 PP 确认 10-17 前通过）；仍缺量化标准：首批数量、良率目标、单件成本上限，无法判定达成的质量水平是否达标。"}
+    ],
+    team:[
+      {name:"Doris", role:"项目经理"},{name:"张昌德", role:"产品 / 开模"},
+      {name:"润琪", role:"模具厂（合作过的老供应商）"},{name:"陆擎天", role:"小 PP 确认 / 风控"},
+      {name:"陈胡位", role:"出仓 / 上架"}
+    ],
+    logs:[
+      {date:"2026-09-17", title:"材质确认：304 不锈钢（合规风险降级）", points:[
+        "Doris 确认材质为 304 不锈钢，具备食品接触合规功能",
+        "风险 #5 由「材质待确认」降级为中 → 低：主要不确定性消除，无长周期强制认证",
+        "剩余为文件类待办（材料声明 / Prop 65 / Amazon 类目要求），可并入上架资料准备，不阻塞 T1 与 DOD",
+        "待确认项从 4 项降为 3 项：升级点清单、量化标准（首批量 / 良率 / 成本上限）、「不做」边界"]},
+      {date:"2026-09-17", title:"立项确认：DOD 口径与关键事实对齐", points:[
+        "DOD 确认：本项目成功 = 2026-10-17 前通过「小 PP 确认」；出仓 10-28 与上架 12-02 归下游",
+        "T0 澄清：已实际开始（任务表未标完成，故显示逾期 10 天）→ 真正约束是 T1（09-22）仅剩 5 天",
+        "头程确认：海运正班船（35–45 天），接受出仓 → 上架零缓冲",
+        "风险 #1 改为「T1 窗口极紧、下游无缓冲」（高）；#6 收窄为「量化标准未定」"]},
+      {date:"2026-09-17", title:"立项建档", points:[
+        "项目性质：老品升级；模具厂 / 供应商：润琪（合作过的老供应商）",
+        "里程碑按任务表导入：开模启动 07-24 ✅ / T0 09-07 / T1 09-22 / 小 PP 确认 09-22→10-17 / 出仓 10-28 / 上架 12-02",
+        "识别风险 6 条"]}
+    ]
+  },
+  {
+    id:"自研款金属碗刷开模",
+    icon:"🍽️",
+    name:"自研款金属碗刷开模",
+    status:"active",
+    sub:"新品开模 · 供应商：欧陆（合作过的老供应商，模具全套）· 阶段：模具调试（T0-T3）未收敛，T0-2 结果顺延至 09-21 · 第一负责人：贺荣华 · ⚠️ 严重落后",
+    startDate:"2026-04-14",
+    dodDate:"2026-08-06",
+    dodText:"2026-08-06 前完成小 PP 试产并 100% 合格（逾期 43 天）",
+    dodDetail:"DOD = 小 PP 试产合格；计划完成日 2026-08-06（依 Doris 2026-09-18 提供的最新进度表），截至 09-18 已逾期 43 天。【T0-2 顺延】欧陆原定 09-18 试模，Doris 当日确认结果「今天出不来，下周一才能出来」→ 顺延至 09-21（周一）。按编号规则：T0-2 若合格即认定为 T1。最乐观测算（非承诺日）：09-21 合格 → T1（09-21）→ 小 PP 20 天 → DOD 约 2026-10-11，较原计划落后约 66 天；若不合格则进 T0-3，周期未知，DOD 继续悬空。下游：大货 08-16 / 质检 08-16 / 海运 08-26 / 上架 09-30，均属二期，不计入 DOD。",
+    nextCheckin:"2026-09-21",
+    milestones:[
+      {task:"产品调研", dept:"产品部", owner:"贺荣华", date:"2026-04-14", actual:"2026-04-14", scope:"本项目", status:"done"},
+      {task:"运营市场深度调研", dept:"亚马逊业务2部", owner:"缪欣冉（已离职）", date:"2026-04-14", actual:"2026-04-14", scope:"本项目", status:"done"},
+      {task:"工业设计和草图确认", dept:"产品部", owner:"张俊", date:"2026-04-14", actual:"2026-04-14", scope:"本项目", status:"done"},
+      {task:"CNC 手板 & 最终方案", dept:"产品部", owner:"张俊", date:"2026-04-14", actual:"2026-04-14", scope:"本项目", status:"done"},
+      {task:"产品推介会 & 研发立项会", dept:"产品部", owner:"贺荣华", date:"2026-04-15", actual:"2026-04-15", scope:"本项目", status:"done"},
+      {task:"模具结构设计 & DFM 评审", dept:"产品部", owner:"张俊 / 贺荣华", date:"2026-04-16", actual:"2026-04-17", scope:"本项目", status:"done"},
+      {task:"模具制造", dept:"产品部", owner:"贺荣华", date:"2026-07-11", actual:"2026-08-24", scope:"本项目", status:"done", group:true},
+      {task:"↳ 不锈钢模具（欧陆）", dept:"产品部", owner:"贺荣华", date:"2026-05-15", actual:"2026-05-15", scope:"本项目", status:"done"},
+      {task:"↳ 手板样验证", dept:"产品部", owner:"贺荣华", date:"2026-05-22", actual:"2026-05-27", scope:"本项目", status:"done"},
+      {task:"↳ 塑料模具（欧陆）", dept:"产品部", owner:"贺荣华", date:"2026-06-26", actual:"2026-08-24", scope:"本项目", status:"done"},
+      {task:"模具调试（T0-T3）", dept:"产品部", owner:"贺荣华", date:"2026-07-17", actual:"", scope:"本项目", status:"active"},
+      {task:"↳ T0-2（结果顺延至 09-21 周一）", dept:"产品部 / 模具厂 欧陆", owner:"贺荣华", date:"2026-08-31", actual:"", scope:"本项目", status:"active"},
+      {task:"产品上架立项会", dept:"产品部", owner:"贺荣华", date:"2026-07-17", actual:"", scope:"本项目", status:"active"},
+      {task:"小 PP 试产（20 天）", dept:"采购部", owner:"田露", date:"2026-08-06", actual:"", scope:"本项目", status:"active", dod:true},
+      {task:"大货生产阶段（10 天）", dept:"采购部", owner:"田露", date:"2026-08-16", actual:"", scope:"二期", status:"active"},
+      {task:"↳ 质检", dept:"风控中心", owner:"陆擎天", date:"2026-08-16", actual:"", scope:"二期", status:"active"},
+      {task:"正班船海运运输", dept:"亚马逊业务2部", owner:"李祝香", date:"2026-08-26", actual:"", scope:"二期", status:"active"},
+      {task:"平台上架以及激活", dept:"亚马逊业务2部", owner:"李祝香", date:"2026-09-30", actual:"", scope:"二期", status:"active"}
+    ],
+    risks:[
+      {id:"#1", title:"模具调试（T0-T3）未收敛 —— 头号卡点【T0-2 结果顺延至 09-21】", sev:"高", status:"open", cat:"技术 / 进度", owner:"贺荣华 / 模具厂 欧陆", due:"09-21（周一）T0-2 结果；不合格则立即索要 T0-3 周期与问题清单", desc:"「严重落后」的当前卡点。按最新进度表：模具调试（T0-T3）计划完成日 07-17，**已逾期 63 天**，仍未收敛；子任务 T0-2 计划完成日 08-31，**已逾期 18 天**。【顺延】欧陆原定 09-18 出 T0-2 结果，Doris 当日确认「今天出不来，下周一才能出来」→ 顺延至 09-21（周一）。按编号规则 T0 → T0-1/T0-2/T0-3……最后一个完美符合要求的才算 T1，故 T0-2 若合格即认定为 T1，闸门打开；不合格则进 T0-3，周期未知。【测算·非承诺日】09-21 合格 → T1（09-21）→ 小 PP 20 天 → DOD 约 2026-10-11，较原计划仍落后约 66 天。仍 open：结果未出，卡点未解除。"},
+      {id:"#2", title:"塑料模具延期 59 天 —— 整链后移的源头", sev:"高", status:"open", cat:"外部依赖 / 进度", owner:"贺荣华 / 模具厂 欧陆", due:"向欧陆确认延期根因（产能排队 / 改图返工 / 来料 / 精度）", desc:"按最新进度表：模具制造整体 计划完成 07-11 → 实际 08-24，**延期 44 天**。拆开看：不锈钢模具（计划 05-15 → 实际 05-15）准时；手板样验证（05-22 → 05-27）延期 5 天；**塑料模具（计划 06-26 → 实际 08-24）延期 59 天**，是唯一重大偏差源。它把模具调试的收敛时点一路推后，吃掉整条下游链的缓冲。欧陆是合作过的老供应商，可作为施加交期压力的抓手。"},
+      {id:"#3", title:"DOD 已逾期 43 天，且新的现实目标日无法确定", sev:"高", status:"open", cat:"计划 / 交付承诺", owner:"Doris（项目经理）+ 贺荣华", due:"T1 合格日出来后立即按硬规则重排并给出新日期", desc:"DOD = 小 PP 试产并 100% 合格，**计划完成日 2026-08-06**（依最新进度表），截至 09-18 **已逾期 43 天**。更关键的是：前置门（试模合格 T1）未达成，当前给不出任何可信的新目标日 —— 项目处于「有 DOD、无交付日」状态，这是对上汇报与备货计划最大的风险敞口。重排口径：T1 合格日 → 小 PP 20 天 → 大货 +15~20 天 → 海运 35~45 天 → 上架。不要再沿用原表的 08-06 / 09-30。"},
+      {id:"#4", title:"小 PP → 大货 闸门与前置期排期冲突", sev:"中", status:"open", cat:"计划 / 逻辑一致性", owner:"田露（采购部）+ Doris", due:"重排时把小 PP 合格设为硬闸门", desc:"按最新进度表：小 PP 试产计划完成 08-06，大货生产阶段计划完成 08-16 —— 两者只隔 **10 天**，低于「小 PP 合格后 +15~20 天才可交付大货」的标准前置期；且大货的开工日（08-06）与 小 PP 的完成日同日，等于没有等待合格确认的缓冲。原表把大货排得过于乐观。仅影响下游排期，不计入 DOD，但重排时必须一并修掉。"},
+      {id:"#5", title:"下游全部节点已逾期（23~33 天），且挂在失效计划上", sev:"中", status:"open", cat:"计划 / 外部依赖", owner:"Doris（项目经理）", due:"T1 合格日确定后统一重算并发布新排期", desc:"按最新进度表，第 9~13 行的计划完成日**全部已过期**且状态仍为 Ongoing：产品上架立项会 07-17（逾期 63 天）、大货生产 08-16（33 天）、质检 08-16（33 天）、正班船海运 08-26（23 天）；唯「平台上架以及激活」计划 09-30 尚未到期（剩 12 天）。这些日期都是在「模具调试 07-17 收敛」这一已不成立的前提上排的，全部不可引用 —— 但「上架 09-30」这个日期仍挂在线上的话，会直接影响 FBA 备货 / 广告 / 上架节奏，**建议尽快明确重排或正式作废**。"}
+    ],
+    team:[
+      {name:"Doris", role:"项目经理"},{name:"贺荣华", role:"产品部 / 第一负责人"},
+      {name:"张俊", role:"产品部 / 结构设计"},{name:"田露", role:"采购部 / 试产与量产"},
+      {name:"陆擎天", role:"风控中心 / 质检"},{name:"李祝香", role:"亚马逊业务2部 / 海运上架"},
+      {name:"欧陆", role:"模具厂（合作过的老供应商）· 模具全套"}
+    ],
+    logs:[
+      {date:"2026-09-18", title:"按新版进度表全量更新（v2 覆盖 v1）", points:[
+        "Doris 提供新版进度表（18 条），作为唯一权威来源；v1 的「计划完成日反推」作废",
+        "口径确认：第一列 = 计划完成日，第二列 = 实际完成日（空 = 未完成）；延期 N 天 = 两列之差，逾期 N 天 = 今天 − 计划完成日",
+        "DOD 计划完成日修正：09-01 → 2026-08-06，逾期 17 天 → 43 天",
+        "塑料模具：计划 06-26 → 实际 08-24（延期 59 天）；模具制造 计划 07-11 → 实际 08-24（延期 44 天）",
+        "下游（大货 / 质检 / 海运 / 上架）状态由 Not started 改为 Ongoing，但计划完成日全部已过期（逾期 23~33 天）",
+        "执行人更正：田磊 → 田露（采购部）",
+        "T0-2 结果顺延至 09-21（周一）；最乐观测算 DOD 约 10-11，落后原计划约 66 天"]},
+      {date:"2026-09-18", title:"立项 + 落后诊断", points:[
+        "从 Doris 的进度表导入 18 条记录（不锈钢碗刷 2PACK），落盘为唯一真实来源，里程碑不推演",
+        "DOD 确认 = 小 PP 试产并 100% 合格（表尾上架激活属下游/二期，不计入）",
+        "第一负责人 贺荣华；供应商 欧陆（合作过的老供应商）承担模具全套",
+        "落后诊断：源头是塑料模具延期 59 天，模具制造整体延期 44 天",
+        "当前卡点：模具调试（T0-T3）未收敛，T0-2 逾期仍未合格",
+        "识别风险 5 条（高 3 / 中 2）"]}
+    ]
+  },
+  {
+    id:"云丘枕开模",
+    icon:"🛏️",
+    name:"云丘枕开模",
+    status:"archived",
+    sub:"新品开模 · 供应商：艾米优品（苏州）供应链管理有限公司（新供应商，无合作基础）· 已完结归档 · 全链路 2026-03-25 → 2026-09-17 上架 · 延后 36 天 · 主责 贺荣华",
+    startDate:"2026-03-25",
+    dodDate:"2026-09-17",
+    dodText:"2026-09-17 完成「平台上架以及激活」（项目已完结归档）",
+    dodDetail:"DOD = 平台上架以及激活完成。实际完成 2026-09-17（原计划 2026-08-12，延后 36 天）。全链路：2026-03-25 产品调研 → 04~06 产品设计确认 / 白坯确认 / 产品开模 / 研发立项 / 包装设计 / 打样确认（T1，含 T0-1、T0-2）→ 06-30 小 PP 试产 + 质检 → 07-11 大货到仓 + 质检 → 07-24 正班船海运 → 08-17 7 图 A+ 设计确认 → 09-17 平台上架激活。23 条记录全部 Completed（准时 9 / 延期 11 / 提前 3），完成度 100%。",
+    milestones:[
+      {task:"产品调研", dept:"产品部", owner:"傅浪涛", date:"2026-03-25", actual:"2026-03-25", scope:"本项目", status:"done"},
+      {task:"运营市场深度调研", dept:"Tiktok 1组", owner:"黄雨雨", date:"2026-03-26", actual:"2026-03-26", scope:"本项目", status:"done"},
+      {task:"↳ 产品推介会 1.0", dept:"产品部", owner:"傅浪涛", date:"2026-03-31", actual:"2026-03-31", scope:"本项目", status:"done"},
+      {task:"产品上架立项会", dept:"产品部", owner:"张昌德", date:"2026-06-05", actual:"2026-06-15", scope:"本项目", status:"done"},
+      {task:"↳ 产品设计确认", dept:"产品部", owner:"贺荣华", date:"2026-04-15", actual:"2026-04-08", scope:"本项目", status:"done"},
+      {task:"↳ 白坯确认", dept:"产品部", owner:"贺荣华", date:"2026-04-30", actual:"2026-05-07", scope:"本项目", status:"done"},
+      {task:"↳↳ 白坯 2.0", dept:"产品部", owner:"贺荣华", date:"2026-04-28", actual:"2026-05-07", scope:"本项目", status:"done"},
+      {task:"↳ 产品开模", dept:"产品部", owner:"贺荣华", date:"2026-05-21", actual:"2026-05-29", scope:"本项目", status:"done"},
+      {task:"↳ 研发立项会", dept:"产品部", owner:"贺荣华", date:"2026-05-09", actual:"2026-05-09", scope:"本项目", status:"done"},
+      {task:"↳ 包装设计需求（所有印刷品）", dept:"Tiktok 1组", owner:"黄雨雨", date:"2026-05-15", actual:"2026-05-15", scope:"本项目", status:"done"},
+      {task:"↳↳ 包装设计确认（包装）", dept:"品牌推广部", owner:"魏培峰", date:"2026-05-29", actual:"2026-05-19", scope:"本项目", status:"done"},
+      {task:"↳ 打样确认（T1）", dept:"产品部", owner:"贺荣华", date:"2026-06-04", actual:"2026-06-11", scope:"本项目", status:"done"},
+      {task:"↳↳ T0-1", dept:"产品部", owner:"贺荣华", date:"2026-05-29", actual:"2026-05-29", scope:"本项目", status:"done"},
+      {task:"↳↳ T0-2", dept:"产品部", owner:"贺荣华", date:"2026-06-03", actual:"2026-06-03", scope:"本项目", status:"done"},
+      {task:"大货到仓", dept:"采购部", owner:"周守健", date:"2026-07-13", actual:"2026-07-11", scope:"本项目", status:"done"},
+      {task:"↳ 质检", dept:"风控中心", owner:"陆擎天", date:"2026-07-13", actual:"2026-07-13", scope:"本项目", status:"done"},
+      {task:"小 PP 试产（公司单子）", dept:"采购部", owner:"周守健", date:"2026-06-18", actual:"2026-06-30", scope:"本项目", status:"done"},
+      {task:"↳ 质检", dept:"风控中心", owner:"陆擎天", date:"2026-06-18", actual:"2026-06-30", scope:"本项目", status:"done"},
+      {task:"正班船海运运输", dept:"Tiktok 1组", owner:"黄雨雨", date:"2026-07-08", actual:"2026-07-24", scope:"本项目", status:"done"},
+      {task:"↳ 7 图 A+ 设计需求", dept:"亚马逊业务2部", owner:"黄雨雨 / 刘英莲", date:"2026-07-06", actual:"2026-07-13", scope:"本项目", status:"done"},
+      {task:"↳ 7 图 A+ 设计确认", dept:"品牌推广部", owner:"魏培峰", date:"2026-07-31", actual:"2026-08-17", scope:"本项目", status:"done"},
+      {task:"用户测试反馈", dept:"产品部", owner:"张昌德", date:"2026-07-10", actual:"2026-07-10", scope:"本项目", status:"done"},
+      {task:"平台上架以及激活", dept:"Tiktok 1组", owner:"黄雨雨", date:"2026-08-12", actual:"2026-09-17", scope:"本项目", status:"done", dod:true}
+    ],
+    risks:[],
+    team:[
+      {name:"Doris", role:"项目经理"},{name:"贺荣华", role:"产品部 / 开模与试模主责（8 条）"},
+      {name:"傅浪涛", role:"产品部 / 调研·推介会"},{name:"张昌德", role:"产品部 / 立项会·测试反馈"},
+      {name:"黄雨雨", role:"Tiktok 1组 / 调研·海运·上架（6 条）"},{name:"魏培峰", role:"品牌推广部 / 包装设计"},
+      {name:"周守健", role:"采购部 / 大货·小PP 试产"},{name:"陆擎天", role:"风控中心 / 质检"},
+      {name:"刘英莲", role:"亚马逊业务2部 / 7 图 A+ 设计"},
+      {name:"艾米优品", role:"供应商 · 艾米优品（苏州）供应链管理有限公司 · 新供应商，无合作基础"}
+    ],
+    logs:[
+      {date:"2026-09-20", title:"供应商补充登记", points:[
+        "Doris 补充：本项目开模 / 生产供应商 = **艾米优品（苏州）供应链管理有限公司**",
+        "关键背景：**新供应商，此前无合作基础** —— 与泳池「迈叶」、厨房「润琪」、碗刷「欧陆」等老供应商性质不同",
+        "已同步记入 charter 团队表、issues 复盘观察、decisions 决策记录",
+        "待确认：其在链路中承担的具体环节（开模 / 成品生产 / 代发）"
+      ]},
+      {date:"2026-09-20", title:"完结归档登记", points:[
+        "Doris 提供项目排期表（23 条记录），全部 Completed；项目已完结归档",
+        "DOD = 平台上架以及激活完成（实际 2026-09-17；原计划 2026-08-12，延后 36 天）",
+        "全链路 2026-03-25 立项调研 → 2026-09-17 上架；结果分布：准时 9 / 延期 11 / 提前 3",
+        "主责 贺荣华（产品部，开模与试模环节）；采购 周守健；运营 黄雨雨",
+        "数据来源：Doris 提供的项目管理系统截图；原表「7 图 A+ 设计需求」责任部门被截断，已就地标注待补"
+      ]}
+    ]
+  }
+];
+
+/* ================= 通用工具 ================= */
+const ICONS = {
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
+  archive:'<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',
+  alert:'<path d="M12 3.5l9 15.5H3z"/><path d="M12 10v4"/><path d="M12 17.2h.01"/>',
+  chart:'<path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-6"/><path d="M2 20h20"/>',
+  pulse:'<path d="M3 12h4l2-5 3 10 2-5h7"/>',
+  bell:'<path d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 4.5 1.8 5.5 1.8 5.5H4.7s1.8-1 1.8-5.5"/><path d="M10.2 18.5a2 2 0 0 0 3.6 0"/>'
+};
+function svgIcon(n){ return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||"")+'</svg>'; }
+
+function dateOnly(v){
+  if(v instanceof Date) return v;
+  var parts = String(v).split("-").map(Number);
+  return new Date(parts[0],parts[1]-1,parts[2]);
+}
+function dayDiff(a,b){
+  a=dateOnly(a); b=dateOnly(b);
+  return Math.round((Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/86400000);
+}
+function pillClass(s){ return s==="高" ? "high" : (s==="中" ? "mid" : "low"); }
+function statusPill(p){ return p.status==="archived" ? '<span class="pill archived">已归档</span>' : '<span class="pill active">进行中</span>'; }
+function fmtMD(d){ var t=dateOnly(d); return (t.getMonth()+1)+"月"+t.getDate()+"日"; }
+function mmdd(d){ var t=dateOnly(d); return String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); }
+function fmtSlash(d){ var t=dateOnly(d); return (t.getMonth()+1)+"/"+t.getDate(); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function richText(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
+function openRisks(p){ return p.risks.filter(function(r){return r.status!=="closed";}); }
+function highRisks(p){ return openRisks(p).filter(function(r){return r.sev==="高";}); }
+function mainMs(p){ return p.milestones.filter(function(m){return m.scope!=="二期";}); }
+/* 完成度只统计"叶子"里程碑：带 group:true 的汇总行（如「模具制造」）不计入，
+   避免与它的子任务（不锈钢模具 / 手板样验证 / 塑料模具）重复计数。 */
+function msProgress(p){
+  var main = p.milestones.filter(function(m){ return m.scope!=="二期" && !m.group; });
+  if(!main.length) return 0;
+  return Math.round(main.filter(function(m){return m.status==="done";}).length / main.length * 100);
+}
+function daysLeftOf(p){
+  var today = new Date(); today.setHours(0,0,0,0);
+  return dayDiff(today, dateOnly(p.dodDate));
+}
+
+/* ================= 状态 ================= */
+var state = { view:"all", current:null, status:"all", sort:"dod", q:"", riskFilter:"all", showP2:false };
+var settings = { compact:false, nomotion:false };
+var toastTimer = null;
+
+/* ================= 设置面板 ================= */
+function curProject(){
+  return PROJECTS.filter(function(x){ return x.id===state.current; })[0] || null;
+}
+function toast(msg){
+  var t = document.getElementById("toast");
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 1700);
+}
+function syncP2Btn(){
+  var tp = document.getElementById("togglePhase2");
+  if(!tp) return;
+  tp.classList.toggle("on", !!state.showP2);
+  tp.textContent = state.showP2 ? "隐藏二期" : "显示二期";
+}
+function applyP2(v){
+  state.showP2 = !!v;
+  syncP2Btn();
+  syncSettingsUI();
+  var p = curProject();
+  if(p && (state.view==="one" || state.view==="preview")) renderDetail(p);
+}
+function applyCompact(v){
+  settings.compact = !!v;
+  document.body.classList.toggle("compact", settings.compact);
+  syncSettingsUI();
+}
+function applyMotion(v){
+  settings.nomotion = !!v;
+  document.body.classList.toggle("nomotion", settings.nomotion);
+  syncSettingsUI();
+}
+function syncSettingsUI(){
+  var p2 = document.getElementById("setP2");
+  var cp = document.getElementById("setCompact");
+  var mo = document.getElementById("setMotion");
+  if(p2) p2.checked = !!state.showP2;
+  if(cp) cp.checked = !!settings.compact;
+  if(mo) mo.checked = !!settings.nomotion;
+}
+function applyRiskChip(v){
+  state.riskFilter = v;
+  Array.prototype.forEach.call(document.querySelectorAll(".chip[data-rf]"), function(x){
+    x.classList.toggle("on", x.getAttribute("data-rf")===v);
+  });
+}
+function renderSettingsJump(){
+  var box = document.getElementById("setJump");
+  if(!box) return;
+  var html = '<div class="set-jitem" role="button" tabindex="0" data-jump="all"><span class="ji-ic">📊</span>'+
+    '<span class="ji-nm">项目组合总览</span><span class="ji-cnt">'+PROJECTS.length+' 个</span></div>';
+  html += PROJECTS.map(function(p){
+    var hi = highRisks(p).length;
+    var cls = p.status==="archived" ? "archived" : (hi ? "high" : "active");
+    var txt = p.status==="archived" ? "已归档" : (hi ? "高危 "+hi : "进行中");
+    return '<div class="set-jitem" role="button" tabindex="0" data-jump="'+esc(p.id)+'" title="'+esc(p.name)+'">'+
+      '<span class="ji-ic">'+esc(p.icon||"📄")+'</span>'+
+      '<span class="ji-nm">'+esc(p.name)+'</span>'+
+      '<span class="pill '+cls+'">'+txt+'</span></div>';
+  }).join("");
+  box.innerHTML = html;
+  Array.prototype.forEach.call(box.querySelectorAll(".set-jitem"), function(it){
+    it.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();it.click();}});
+    it.addEventListener("click", function(e){
+      e.stopPropagation();
+      closeSettings();
+      go(it.getAttribute("data-jump"));
+      toast("已跳转：" + (it.getAttribute("data-jump")==="all" ? "项目组合总览" : it.getAttribute("title")));
+    });
+  });
+}
+function openSettings(){
+  var panel = document.getElementById("setPanel");
+  var btn = document.getElementById("setBtn");
+  if(!panel) return;
+  renderSettingsJump();
+  syncSettingsUI();
+  panel.classList.remove("hidden");
+  btn.classList.add("on");
+  btn.setAttribute("aria-expanded","true");
+}
+function closeSettings(){
+  var panel = document.getElementById("setPanel");
+  var btn = document.getElementById("setBtn");
+  if(!panel || panel.classList.contains("hidden")) return;
+  panel.classList.add("hidden");
+  btn.classList.remove("on");
+  btn.setAttribute("aria-expanded","false");
+}
+function toggleSettings(){
+  var panel = document.getElementById("setPanel");
+  if(panel && panel.classList.contains("hidden")) openSettings(); else closeSettings();
+}
+function resetFilters(){
+  state.status = "all"; state.sort = "dod"; state.q = "";
+  document.getElementById("searchInput").value = "";
+  document.getElementById("sortSelect").value = "dod";
+  Array.prototype.forEach.call(document.querySelectorAll("#statusChips .chip"), function(c){
+    c.classList.toggle("on", c.getAttribute("data-st")==="all");
+  });
+  applyRiskChip("all");
+  applyP2(false);
+  renderKpis(); renderSide(); renderCards();
+  var p = curProject();
+  if(p && (state.view==="one" || state.view==="preview")) renderDetail(p);
+  toast("已重置筛选与二期显示");
+}
+
+/* ================= KPI ================= */
+function renderKpis(){
+  var total = PROJECTS.length;
+  var act = PROJECTS.filter(function(p){return p.status==="active";}).length;
+  var arc = total - act;
+  var high = PROJECTS.reduce(function(n,p){ return n + highRisks(p).length; },0);
+  var open = PROJECTS.reduce(function(n,p){ return n + openRisks(p).length; },0);
+  var actPr = PROJECTS.filter(function(p){return p.status==="active";});
+  var avg = actPr.length ? Math.round(actPr.reduce(function(n,p){return n+msProgress(p);},0)/actPr.length) : 0;
+  var cards = [
+    {ic:"folder", label:"总项目", val:total, sub:"全部项目", fill:100, g:"g-violet"},
+    {ic:"clock",  label:"进行中", val:act, sub:"active", fill:Math.round(act/total*100), g:"g-mint"},
+    {ic:"archive",label:"已归档", val:arc, sub:"archived", fill:Math.round(arc/total*100), g:"g-lav"},
+    {ic:"alert",  label:"高危风险", val:high, sub:"未结 "+open+" 条", fill:Math.round(high/(open||1)*100), g:"g-rose"},
+    {ic:"chart",  label:"平均完成度", val:avg+"%", sub:"进行中项目", fill:avg, g:"g-amber"}
+  ];
+  document.getElementById("kpis").innerHTML = cards.map(function(c){
+    return '<div class="kpi glass">'+
+      '<div class="kpi-top"><span class="kpi-ic">'+svgIcon(c.ic)+'</span><span>'+c.label+'</span></div>'+
+      '<div class="kpi-num">'+c.val+'</div>'+
+      '<div class="kpi-sub">'+c.sub+'</div>'+
+      '<div class="kpi-bar"><div class="kpi-fill '+c.g+'" style="width:'+Math.max(c.fill,4)+'%"></div></div>'+
+    '</div>';
+  }).join("");
+}
+
+/* ================= 总览渲染 ================= */
+function filteredProjects(){
+  var q = state.q.trim().toLowerCase();
+  var list = PROJECTS.filter(function(p){
+    if(state.status==="active" && p.status!=="active") return false;
+    if(state.status==="archived" && p.status!=="archived") return false;
+    if(state.status==="highrisk" && highRisks(p).length===0) return false;
+    if(q){
+      var hay = [p.name, p.sub, p.id];
+      p.team.forEach(function(t){ hay.push(t.name, t.role); });
+      p.risks.forEach(function(r){ hay.push(r.title, r.owner, r.cat); });
+      hay.push(p.dodText);
+      if(hay.join(" ").toLowerCase().indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  if(state.sort==="dod"){
+    list.sort(function(a,b){ return (a.status==="archived")-(b.status==="archived") || daysLeftOf(a)-daysLeftOf(b); });
+  } else if(state.sort==="progress"){
+    list.sort(function(a,b){ return msProgress(b)-msProgress(a); });
+  } else if(state.sort==="risk"){
+    list.sort(function(a,b){ return openRisks(b).length-openRisks(a).length || highRisks(b).length-highRisks(a).length; });
+  } else {
+    list.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
+  }
+  return list;
+}
+
+function leadOf(p){
+  var doer = p.team.filter(function(t){ return t.role.indexOf("项目")===-1; })[0];
+  return doer || p.team[0] || null;
+}
+
+function renderCards(){
+  var list = filteredProjects();
+  var box = document.getElementById("cards");
+  var GRADS = ["g-rose","g-violet","g-mint","g-amber","g-lav"];
+  if(!list.length){
+    box.innerHTML = '<div class="empty-note">没有符合条件的项目。换个筛选条件，或说一句「立项 XXX」新建一个。</div>';
+  } else {
+    box.innerHTML = list.map(function(p,idx){
+      var left = daysLeftOf(p);
+      var archived = p.status==="archived";
+      var prog = msProgress(p);
+      var hi = highRisks(p).length;
+      var g = GRADS[idx % GRADS.length];
+      var lead = leadOf(p);
+      var leadTxt = lead ? ("负责人 "+esc(lead.name)) : "";
+      var dueTxt = archived ? "已归档" : (left<0 ? "逾期 "+Math.abs(left)+" 天" : "距 DOD "+left+" 天");
+      var cls = archived ? "archived" : (hi ? "high" : "active");
+      var txt = archived ? "已归档" : (hi ? ("高危 "+hi) : "进行中");
+      return '<div class="pcard" role="button" tabindex="0" aria-label="查看 '+esc(p.name)+' 详情" data-go="'+esc(p.id)+'">'+
+        '<div class="pcard-top">'+
+          '<span class="pcard-ic">'+esc(p.icon||"📄")+'</span>'+
+          '<div style="min-width:0"><div class="pcard-name">'+esc(p.name)+'</div>'+
+          '<div class="pcard-lead">'+leadTxt+'</div></div>'+
+          '<span class="pcard-pill pill '+cls+'">'+txt+'</span>'+
+        '</div>'+
+        '<div class="pcard-bar"><div class="pcard-fill '+g+'" style="width:'+prog+'%"></div></div>'+
+        '<div class="pcard-foot"><span class="pcard-pct">'+prog+'%</span><button type="button" class="preview-btn" aria-label="预览 '+esc(p.name)+'">预览 ↗</button><span class="pcard-due">'+dueTxt+'</span></div>'+
+      '</div>';
+    }).join("");
+  }
+  Array.prototype.forEach.call(box.querySelectorAll(".pcard"), function(card){
+    card.addEventListener("click", function(e){
+      if(e.target.closest(".preview-btn")){ openPreview(card.getAttribute("data-go")); return; }
+      go(card.getAttribute("data-go"));
+    });
+    card.addEventListener("keydown", function(e){
+      if(e.target===card && (e.key==="Enter" || e.key===" ")){ e.preventDefault(); go(card.getAttribute("data-go")); }
+    });
+  });
+  document.getElementById("summary").textContent = "共 "+PROJECTS.length+" 个 · 显示 "+list.length+" 个";
+}
+
+/* ================= 近期动态 / 提醒 ================= */
+function buildActivity(){
+  var items = [];
+  PROJECTS.forEach(function(p){
+    if(p.logs && p.logs.length){
+      var l = p.logs[0];
+      items.push({date:l.date, title:l.title, proj:p.name});
+    }
+  });
+  items.sort(function(a,b){ return dateOnly(b.date)-dateOnly(a.date); });
+  return items.slice(0,5);
+}
+function buildReminders(){
+  var items = [];
+  PROJECTS.forEach(function(p){
+    if(p.status!=="active") return;
+    var next = p.milestones.filter(function(m){ return m.scope!=="二期" && m.status!=="done"; })
+      .sort(function(a,b){ return dateOnly(a.date)-dateOnly(b.date); })[0];
+    if(next){
+      items.push({date:next.date, proj:p.name, text:next.task+(next.dod?"（DOD 标的）":""), days:dayDiff(new Date(), dateOnly(next.date))});
+    }
+  });
+  items.sort(function(a,b){ return dateOnly(a.date)-dateOnly(b.date); });
+  return items;
+}
+function renderSide(){
+  var acts = buildActivity();
+  document.getElementById("activityList").innerHTML = acts.length ? acts.map(function(a){
+    return '<li class="act-item"><span class="act-dot">'+svgIcon("pulse")+'</span>'+
+      '<div><div class="act-txt">'+esc(a.title)+' <span class="p">· '+esc(a.proj)+'</span></div>'+
+      '<div class="act-date">'+esc(a.date)+'</div></div></li>';
+  }).join("") : '<li class="empty">暂无动态</li>';
+
+  var rms = buildReminders();
+  var high = PROJECTS.reduce(function(n,p){ return n + highRisks(p).length; },0);
+  var html = rms.map(function(r){
+    var dTxt = r.days<0 ? ("逾期 "+Math.abs(r.days)+" 天") : ("还有 "+r.days+" 天");
+    return '<li class="act-item"><span class="act-dot">'+svgIcon("bell")+'</span>'+
+      '<div><div class="act-txt">'+esc(r.text)+'</div>'+
+      '<div class="act-date">'+esc(r.proj)+' · '+esc(r.date)+' · '+dTxt+'</div></div></li>';
+  }).join("");
+  if(high){
+    html += '<li class="act-item"><span class="act-dot" style="color:#a13b3b">'+svgIcon("alert")+'</span>'+
+      '<div><div class="act-txt">高危风险 '+high+' 条待跟踪</div><div class="act-date">详见各项目详情</div></div></li>';
+  }
+  document.getElementById("remindList").innerHTML = html || '<li class="empty">暂无提醒</li>';
+}
+
+/* ================= 详情渲染 ================= */
+function renderDetail(p){
+  var today = new Date(); today.setHours(0,0,0,0);
+  var dod = dateOnly(p.dodDate);
+
+  document.getElementById("dIcon").textContent = p.icon || "📁";
+  document.getElementById("dName").textContent = p.name;
+  document.getElementById("dSub").textContent = p.sub;
+  document.getElementById("crumbName").textContent = p.name;
+  document.getElementById("ppStatus").innerHTML = statusPill(p);
+  var dodLabel = p.dodText.replace(/（逾期 \d+ 天）/g, "");
+  document.getElementById("ppDod").textContent = dodLabel;
+  document.getElementById("dodDetail").textContent = p.dodDetail;
+
+  var left = dayDiff(today, dod);
+  document.getElementById("ppDays").textContent = (p.status==="archived") ? "已归档" : (left>=0 ? left : Math.abs(left));
+  document.getElementById("ppDaysUnit").textContent = (p.status==="archived") ? "" : (left<0 ? " 天（逾期）" : " 天");
+
+  if(p.nextCheckin){
+    var nc = dateOnly(p.nextCheckin);
+    document.getElementById("ppNext").textContent = p.nextCheckin+" "+["周日","周一","周二","周三","周四","周五","周六"][nc.getDay()]+" 09:00";
+  } else {
+    document.getElementById("ppNext").textContent = "该项目无查岗计划";
+  }
+
+  if(p.startDate){
+    var start = dateOnly(p.startDate);
+    var total = dayDiff(start, dod);
+    var passed = Math.min(Math.max(dayDiff(start, today),0), total);
+    var pct = total>0 ? Math.round(passed/total*100) : 0;
+    document.getElementById("tbFill").style.width = pct+"%";
+    document.getElementById("tbDot").style.left = pct+"%";
+    document.getElementById("tbNow").textContent = "今天 · 已过 "+passed+" 天（"+pct+"%）";
+    document.getElementById("tbStart").textContent = "启动 "+fmtMD(p.startDate);
+    document.getElementById("tbEnd").textContent = "DOD "+fmtMD(p.dodDate);
+    document.getElementById("timebarWrap").classList.remove("hidden");
+  } else {
+    document.getElementById("timebarWrap").classList.add("hidden");
+  }
+
+  var ul = document.getElementById("msList");
+  ul.innerHTML = "";
+  p.milestones.forEach(function(m){
+    if(m.scope==="二期" && !state.showP2) return;
+    var li = document.createElement("li");
+    li.className = "ms-row " + m.status + (m.scope==="二期" ? " phase2" : "");
+    var d = dateOnly(m.date);
+    var md = mmdd(m.date);
+    var tag = "";
+    if(m.scope==="二期") tag = '<span class="tag phase2">二期</span>';
+    if(m.dod) tag += '<span class="tag dod">DOD 标的</span>';
+    var boxChar = m.status==="done" ? "✓" : "";
+
+    /* Always show both dates; a missing actual date is not inferred from the plan. */
+    var metaHtml;
+    {
+      var actHtml, actCls;
+      if(m.actual){
+        var diff = dayDiff(dateOnly(m.date), dateOnly(m.actual));   // actual 晚于 plan 为正 = 延期
+        actCls = diff > 0 ? "late" : "ok";
+        actHtml = mmdd(m.actual) +
+          (diff > 0 ? '<b>延期'+diff+'天</b>' : (diff < 0 ? '<b>提前'+(-diff)+'天</b>' : '<b>准时</b>'));
+      } else {
+        var today0 = new Date(); today0.setHours(0,0,0,0);
+        var over = dayDiff(dateOnly(m.date), today0);               // 计划日已过多少天
+        if(m.status !== "done" && over > 0){ actCls = "over"; actHtml = '—<b>逾期'+over+'天</b>'; }
+        else { actCls = "none"; actHtml = m.status==='done' ? '未记录' : '—'; }
+      }
+      metaHtml =
+        '<span class="ms-d"><b>计划</b>'+md+'</span>'+
+        '<span class="ms-d '+actCls+'"><b>实际</b>'+actHtml+'</span>'+
+        '<span class="dot">·</span><span>'+esc(m.dept)+' · '+esc(m.owner)+'</span>'+tag;
+    }
+
+    li.innerHTML =
+      '<span class="ms-box">'+boxChar+'</span>'+
+      '<div class="ms-main"><div class="ms-task">'+esc(m.task)+'</div>'+
+      '<div class="ms-meta">'+metaHtml+'</div></div>';
+    ul.appendChild(li);
+  });
+
+  var rl = document.getElementById("riskList");
+  rl.innerHTML = "";
+  var order = {"高":0,"中":1,"低":2};
+  var rf = state.riskFilter;
+  var shown = p.risks.filter(function(r){
+    if(rf==="open") return r.status!=="closed";
+    if(rf==="high") return r.sev==="高" && r.status!=="closed";
+    return true;
+  });
+  if(!shown.length){
+    rl.innerHTML = '<div class="empty">当前筛选条件下没有风险条目。</div>';
+  } else {
+    shown.slice().sort(function(a,b){
+      return (a.status==="closed")-(b.status==="closed") || order[a.sev]-order[b.sev];
+    }).forEach(function(r){
+      var div = document.createElement("div");
+      div.className = "risk risk-" + pillClass(r.sev) + (r.status==="closed" ? " closed" : "");
+      div.innerHTML =
+        '<div class="risk-top"><div class="risk-title">'+esc(r.title)+'</div><span class="pill '+pillClass(r.sev)+'">'+esc(r.sev)+'</span></div>'+
+        '<div class="risk-meta">'+esc(r.cat)+' · '+esc(r.owner)+' · '+esc(r.id)+'</div>'+
+        '<div class="risk-desc">'+richText(r.desc)+'</div>'+
+        (r.status!=="closed" ? '<div class="risk-meta">预期解决：'+esc(r.due)+'</div>' : '');
+      rl.appendChild(div);
+    });
+  }
+
+  document.getElementById("teamList").innerHTML = p.team.map(function(t){
+    return '<div class="team-item"><b>'+esc(t.name)+'</b><span>'+esc(t.role)+'</span></div>';
+  }).join("");
+
+  document.getElementById("logList").innerHTML = p.logs.map(function(l){
+    return '<div class="log-entry"><div class="log-date">'+esc(l.date)+'</div>'+
+      '<div class="log-title">'+esc(l.title)+'</div><ul>'+
+      l.points.map(function(x){return '<li>'+richText(x)+'</li>';}).join("")+'</ul></div>';
+  }).join("");
+}
+
+/* ================= 视图切换 ================= */
+function go(target){
+  if(document.getElementById("previewDialog").open) closePreview();
+  if(target==="all"){
+    state.view = "all"; state.current = null;
+    document.getElementById("viewAll").classList.remove("hidden");
+    document.getElementById("viewOne").classList.add("hidden");
+    document.getElementById("bottombar").classList.remove("hidden");
+    renderKpis(); renderSide(); renderCards();
+    saveHash("#/all");
+    window.scrollTo(0,0);
+    return;
+  }
+  var p = PROJECTS.filter(function(x){return x.id===target;})[0];
+  if(!p){ go("all"); return; }
+  state.view = "one"; state.current = p.id;
+  applyRiskChip("all");
+  syncP2Btn(); syncSettingsUI();
+  document.getElementById("viewAll").classList.add("hidden");
+  document.getElementById("viewOne").classList.remove("hidden");
+  document.getElementById("bottombar").classList.add("hidden");
+  renderDetail(p);
+  saveHash("#/p/"+encodeURIComponent(p.id));
+  window.scrollTo(0,0);
+}
+function saveHash(h){
+  try{ localStorage.setItem("coach-board-last", h); }catch(e){}
+  if(location.hash !== h){ try{ history.pushState(null,"",h); }catch(e){ location.hash=h; } }
+}
+
+/* ================= 事件绑定 ================= */
+var previewFocus = null;
+function openPreview(id){
+  var p=PROJECTS.find(function(x){return x.id===id;});
+  if(!p) return;
+  previewFocus=document.activeElement;
+  state.view="preview"; state.current=p.id;
+  applyRiskChip("all"); syncP2Btn(); syncSettingsUI();
+  var view=document.getElementById("viewOne");
+  document.getElementById("previewBody").appendChild(view);
+  view.classList.remove("hidden"); renderDetail(p);
+  document.getElementById("previewDialog").showModal();
+  document.getElementById("previewDialog").scrollTop=0;
+  document.getElementById("previewClose").focus();
+}
+function closePreview(){
+  var view=document.getElementById("viewOne");
+  document.getElementById("detailHost").appendChild(view);
+  view.classList.add("hidden");
+  document.getElementById("previewDialog").close();
+  state.view="all";state.current=null;
+  if(previewFocus && previewFocus.isConnected) previewFocus.focus();
+}
+function routeFromHash(){
+  var h=location.hash;
+  var target="all";
+  if(h.indexOf("#/p/")===0){try{target=decodeURIComponent(h.slice(4));}catch(e){}}
+  go(target);
+}
+window.addEventListener("popstate",routeFromHash);
+window.addEventListener("hashchange",routeFromHash);
+function bind(){
+  var dialog=document.getElementById("previewDialog");
+  document.getElementById("previewClose").addEventListener("click",closePreview);
+  document.getElementById("previewFull").addEventListener("click",function(){var id=state.current;closePreview();go(id);});
+  dialog.addEventListener("cancel",function(e){e.preventDefault();closePreview();});
+  dialog.addEventListener("click",function(e){if(e.target===dialog){var r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closePreview();}});
+  document.getElementById("backBtn").addEventListener("click", function(){ go("all"); });
+  document.querySelector('.crumb a[data-go="all"]').addEventListener("click", function(){ go("all"); });
+
+  Array.prototype.forEach.call(document.querySelectorAll("#statusChips .chip"), function(c){
+    c.addEventListener("click", function(){
+      state.status = c.getAttribute("data-st");
+      Array.prototype.forEach.call(document.querySelectorAll("#statusChips .chip"), function(x){ x.classList.remove("on"); });
+      c.classList.add("on");
+      if(state.view!=="all") go("all");
+      renderKpis(); renderSide(); renderCards();
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip[data-rf]"), function(c){
+    c.addEventListener("click", function(){
+      applyRiskChip(c.getAttribute("data-rf"));
+      var p = curProject();
+      if(p) renderDetail(p);
+    });
+  });
+
+  document.getElementById("searchInput").addEventListener("input", function(e){
+    state.q = e.target.value; renderCards();
+  });
+  document.getElementById("sortSelect").addEventListener("change", function(e){
+    state.sort = e.target.value; renderCards();
+  });
+  document.getElementById("togglePhase2").addEventListener("click", function(){
+    applyP2(!state.showP2);
+    toast(state.showP2 ? "已显示二期里程碑" : "已隐藏二期里程碑");
+  });
+
+  /* ---- 设置面板 ---- */
+  var setBtn = document.getElementById("setBtn");
+  var setPanel = document.getElementById("setPanel");
+  setBtn.addEventListener("click", function(e){ e.stopPropagation(); toggleSettings(); });
+  setPanel.addEventListener("click", function(e){ e.stopPropagation(); });
+  document.addEventListener("click", function(){ closeSettings(); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") closeSettings(); });
+
+  document.getElementById("setP2").addEventListener("change", function(){
+    applyP2(this.checked);
+    toast(this.checked ? "已显示二期里程碑" : "已隐藏二期里程碑");
+  });
+  document.getElementById("setCompact").addEventListener("change", function(){
+    applyCompact(this.checked);
+    toast(this.checked ? "已开启紧凑模式" : "已关闭紧凑模式");
+  });
+  document.getElementById("setMotion").addEventListener("change", function(){
+    applyMotion(this.checked);
+    toast(this.checked ? "已减少动效" : "已恢复动效");
+  });
+  document.getElementById("setReset").addEventListener("click", function(){ resetFilters(); });
+}
+
+/* ================= 启动 ================= */
+try{
+  bind();
+  document.getElementById("brandSub").textContent =
+    "共 "+PROJECTS.length+" 个项目 · 由「Doris 的项目教练」维护 · 点项目卡片看详情";
+  document.getElementById("countChip").textContent = PROJECTS.length;
+  document.getElementById("snapTime").textContent = "数据快照："+SNAPSHOT+" · 由「Doris 的项目教练」生成";
+  document.getElementById("setMeta").textContent = "快照 "+SNAPSHOT;
+  syncP2Btn(); syncSettingsUI();
+
+  var start = "all";
+  var hash = location.hash || "";
+  try{ var saved = localStorage.getItem("coach-board-last"); }catch(e){ var saved = null; }
+  if(hash.indexOf("#/p/")===0){ try{ start = decodeURIComponent(hash.slice(4)); }catch(e){ start="all"; } }
+  else if(hash==="#/all"){ start = "all"; }
+  
+  go(start);
+}catch(e){
+  var box = document.getElementById("errorBox");
+  box.style.display = "block";
+  box.textContent = "看板渲染失败：" + e.message + "。请让项目教练重新生成看板。";
+}
+</script>
+</body>
+</html>
