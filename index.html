@@ -166,6 +166,18 @@
   .dcols{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start}
   .dcol{display:flex;flex-direction:column;gap:16px}
 
+  
+  /* gantt scroll & subtask collapse */
+  .gantt-scroll-wrap { overflow-x: auto; overflow-y: auto; max-height: 520px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.25); padding: 0 12px; position: relative; }
+  .gantt-scroll-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gantt-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(120,110,165,0.28); border-radius: 4px; }
+  .gantt-scroll-wrap::-webkit-scrollbar-thumb:hover { background: rgba(120,110,165,0.45); }
+  .gantt-axis { position: sticky; top: 0; background: rgba(246, 243, 251, 0.95); backdrop-filter: blur(10px); z-index: 10; }
+  .ms-toggle-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #7b64d6; background: rgba(123, 100, 214, 0.12); padding: 2px 8px; border-radius: 6px; margin-left: 8px; cursor: pointer; border: 1px solid rgba(123, 100, 214, 0.2); user-select: none; transition: all 0.15s ease; }
+  .ms-toggle-badge:hover { background: rgba(123, 100, 214, 0.22); }
+  .ms-row.subtask { padding-left: 24px; background: rgba(255,255,255,0.15); }
+  .ms-row.subtask.collapsed { display: none !important; }
+
   /* milestones */
   .ms{list-style:none}
   .ms-row{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
@@ -483,7 +495,7 @@
       <div class="gantt-head"><h2 id="ganttTitle">里程碑甘特图</h2><button type="button" class="chip" id="ganttPhase2" aria-controls="ganttChart">显示二期</button></div>
       <p class="gantt-note">按计划日期定位里程碑；圆点为已记录的实际日期，连接条表示提前 / 延期，虚线条表示逾期至今天。源数据没有任务起止日期，图中不推算工期；实际未记录的完成项仅标示计划节点。</p>
       <div class="gantt-legend"><span><i class="gantt-key"></i>计划节点</span><span><i class="gantt-key actual"></i>实际完成</span><span><i class="gantt-key active"></i>进行中</span><span><i class="gantt-key late"></i>延期 / 逾期</span></div>
-      <div id="ganttChart" class="gantt-grid" role="list" aria-label="里程碑计划与实际日期"></div>
+      <div class="gantt-scroll-wrap"><div id="ganttChart" class="gantt-grid" role="list" aria-label="里程碑计划与实际日期"></div></div>
     </section>
 
     <div class="dcols">
@@ -1554,7 +1566,7 @@ const PROJECTS = [
     "icon": "🕸️",
     "name": "自研款浅捞网升级项目",
     "status": "active",
-    "sub": "浅捞网升级款 · 阶段：执行 · 项目经理：Doris · 负责人：唐明帅（截图读取，待抽核）",
+    "sub": "浅捞网升级款 · 供应商：迈叶（模具厂，老供应商） · 阶段：执行 · 项目经理：Doris · 负责人：唐明帅",
     "startDate": "2026-08-14",
     "dodDate": "2027-01-13",
     "dodText": "2027-01-13 前完成首批上架（截图读取，待抽核）",
@@ -1564,7 +1576,7 @@ const PROJECTS = [
       {
         "task": "产品推介会",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-08-14",
         "actual": "2026-08-14",
         "scope": "本项目",
@@ -1573,7 +1585,7 @@ const PROJECTS = [
       {
         "task": "产品内部评审会",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-08-28",
         "actual": "2026-08-28",
         "scope": "本项目",
@@ -1582,7 +1594,7 @@ const PROJECTS = [
       {
         "task": "产品研发立项会",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-08-28",
         "actual": "2026-08-28",
         "scope": "本项目",
@@ -1591,7 +1603,7 @@ const PROJECTS = [
       {
         "task": "开模",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-11-09",
         "scope": "本项目",
         "status": "active"
@@ -1599,7 +1611,7 @@ const PROJECTS = [
       {
         "task": "↳ T0（含国庆假期）",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-10-08",
         "scope": "本项目",
         "status": "active"
@@ -1607,7 +1619,7 @@ const PROJECTS = [
       {
         "task": "↳ T1（一个月）",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-11-09",
         "scope": "本项目",
         "status": "active"
@@ -1615,7 +1627,7 @@ const PROJECTS = [
       {
         "task": "首批上架",
         "dept": "亚马逊业务2部",
-        "owner": "黄苏杨（截图读取，待抽核）",
+        "owner": "黄苏杨",
         "date": "2027-01-13",
         "scope": "本项目",
         "status": "active",
@@ -1624,7 +1636,7 @@ const PROJECTS = [
       {
         "task": "产品试用报告",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-11-11",
         "scope": "本项目",
         "status": "active"
@@ -1632,7 +1644,7 @@ const PROJECTS = [
       {
         "task": "产品上架立项会",
         "dept": "产品部",
-        "owner": "唐明帅（截图读取，待抽核）",
+        "owner": "唐明帅",
         "date": "2026-11-12",
         "scope": "本项目",
         "status": "active"
@@ -1640,7 +1652,7 @@ const PROJECTS = [
       {
         "task": "小PP制作完成",
         "dept": "采购部",
-        "owner": "周守健（截图读取，待抽核）",
+        "owner": "周守健",
         "date": "2026-12-03",
         "scope": "本项目",
         "status": "active"
@@ -1648,7 +1660,7 @@ const PROJECTS = [
       {
         "task": "小PP质检合格",
         "dept": "风控中心",
-        "owner": "陆擎天（截图读取，待抽核）",
+        "owner": "陆擎天",
         "date": "2026-12-04",
         "scope": "本项目",
         "status": "active"
@@ -1656,7 +1668,7 @@ const PROJECTS = [
       {
         "task": "大货制作完成",
         "dept": "采购部",
-        "owner": "周守健（截图读取，待抽核）",
+        "owner": "周守健",
         "date": "2026-12-29",
         "scope": "本项目",
         "status": "active"
@@ -1664,7 +1676,7 @@ const PROJECTS = [
       {
         "task": "首批出仓（正班船）",
         "dept": "亚马逊业务2部",
-        "owner": "黄苏杨（截图读取，待抽核）",
+        "owner": "黄苏杨",
         "date": "2026-12-09",
         "scope": "本项目",
         "status": "active"
@@ -1673,13 +1685,43 @@ const PROJECTS = [
     "risks": [
       {
         "id": "#1",
-        "title": "供应商及质量门信息待补",
+        "title": "T0 → T1 试模与改模周期紧张（头号技术风险）",
+        "sev": "高",
+        "status": "open",
+        "cat": "技术 / 制造",
+        "owner": "唐明帅 / 模具厂 迈叶",
+        "due": "2026-10-08 T0 后立即评估",
+        "desc": "T0 计划 10-08（含国庆假期），T1 计划 11-09，中间仅 1 个月试模窗口。试模改模为关键不可控环节，T1 一旦延期将直接推迟 12-03 小 PP 试产与 12-09 首批出仓，威胁 DOD。"
+      },
+      {
+        "id": "#2",
+        "title": "小 PP 制作与 100% 质检窗口仅 1 天（关键质量门）",
+        "sev": "高",
+        "status": "open",
+        "cat": "质量 / 计划",
+        "owner": "陆擎天（风控）/ 周守健（采购）",
+        "due": "2026-12-03 小 PP 完成即刻介入",
+        "desc": "小 PP 制作 12-03 完成，质检合格定于 12-04，仅留 1 天检验缓冲；而 12-09 即要求正班船首批出仓。若首件试产批次不良需返工，出仓与订舱将被击穿。"
+      },
+      {
+        "id": "#3",
+        "title": "正班船海运至上架零缓冲，撞春节停运窗口",
+        "sev": "高",
+        "status": "open",
+        "cat": "物流 / 供应链",
+        "owner": "黄苏杨（业务2部）/ Doris",
+        "due": "2026-11-20 前锁定正班船舱位",
+        "desc": "首批出仓 12-09，上架目标 2027-01-13，中间海运+清关+入仓仅 35 天（正班船典型 35~45 天），处于极限时效边缘；且 1 月中旬临近农历春节港口与仓库停运高峰，极易发生延误。"
+      },
+      {
+        "id": "#4",
+        "title": "大货生产（12-29）在首批出仓（12-09）之后，首批出货依赖小 PP",
         "sev": "中",
         "status": "open",
-        "cat": "信息完整性",
-        "owner": "Doris / 项目负责人",
-        "due": "下次查岗前",
-        "desc": "排期截图中未显示供应商名称与质量门标准，需后续补充对齐。"
+        "cat": "计划 / 交付",
+        "owner": "唐明帅 / 周守健",
+        "due": "2026-11-15 前对齐首批备货批次",
+        "desc": "排期中 12-09 出仓节点先于 12-29 大货制作完成，表明 12-09 首批正班船发运为小 PP 批次；大货与首批存在时序错位，需确保小 PP 数量满足首发需求且大货接续顺畅。"
       }
     ],
     "team": [
@@ -1689,22 +1731,34 @@ const PROJECTS = [
       },
       {
         "name": "唐明帅",
-        "role": "产品部 / 开模与研发（截图读取，待抽核）"
+        "role": "产品部 / 开模与研发主责"
+      },
+      {
+        "name": "迈叶",
+        "role": "模具厂 / 老供应商"
       },
       {
         "name": "周守健",
-        "role": "采购部 / 试产与大货（截图读取，待抽核）"
+        "role": "采购部 / 试产与大货量产"
       },
       {
         "name": "陆擎天",
-        "role": "风控中心 / 质检（截图读取，待抽核）"
+        "role": "风控中心 / 质检与品质"
       },
       {
         "name": "黄苏杨",
-        "role": "亚马逊业务2部 / 上架与出仓（截图读取，待抽核）"
+        "role": "亚马逊业务2部 / 上架与出仓"
       }
     ],
     "logs": [
+      {
+        "date": "2026-09-20",
+        "title": "供应商与风险模型对齐",
+        "points": [
+          "确认供应商为迈叶（模具厂，老供应商）；截图时间确认无误。",
+          "按 WorkBuddy 规范建立 4 大风险项：T0-T1 改模超期(高)、小PP质检时间窗(高)、海运撞春节(高)、大货与首批时序错位(中)。"
+        ]
+      },
       {
         "date": "2026-09-20",
         "title": "立项排期录入",
@@ -2065,7 +2119,14 @@ function renderGantt(p, today){
     ticks+='<span class="gantt-tick" style="left:'+f*100+'%;transform:'+(f===0?'none':f===1?'translateX(-100%)':'translateX(-50%)')+'">'+label(t)+'</span>';
   });
   var axis='<div class="gantt-axis"><div class="gantt-axis-title">里程碑 / 状态与日期</div><div class="gantt-scale">'+ticks+(todayInRange?'<span class="gantt-today-label">今天</span>':'')+'</div></div>';
+  var curParentG = null;
   root.innerHTML=axis+rows.map(function(m){
+    var isSub = m.task.indexOf("↳") !== -1;
+    if (!isSub) curParentG = m.task;
+    var pForThis = isSub ? curParentG : null;
+    if (pForThis && window._collapsedGroups && window._collapsedGroups[p.id] && window._collapsedGroups[p.id][pForThis]) {
+      return "";
+    }
     var plan=valid(m.date)?stamp(m.date):null;
     var actual=valid(m.actual)?stamp(m.actual):null;
     var status={done:'已完成',active:'进行中',todo:'未开始'}[m.status]||'状态未记录';
@@ -2127,10 +2188,36 @@ function renderDetail(p){
   renderGantt(p, today);
   var ul = document.getElementById("msList");
   ul.innerHTML = "";
+
+  if (!window._collapsedGroups) window._collapsedGroups = {};
+  var curProjId = p.id;
+  if (!window._collapsedGroups[curProjId]) window._collapsedGroups[curProjId] = {};
+
+  var currentParent = null;
+  var parentChildCount = {};
   p.milestones.forEach(function(m){
+    var isSub = m.task.indexOf("↳") !== -1;
+    if (!isSub) {
+      currentParent = m.task;
+      parentChildCount[currentParent] = 0;
+    } else if (currentParent) {
+      parentChildCount[currentParent]++;
+    }
+  });
+
+  currentParent = null;
+  p.milestones.forEach(function(m, idx){
     if(m.scope==="二期" && !state.showP2) return;
+    var isSub = m.task.indexOf("↳") !== -1;
+    if (!isSub) currentParent = m.task;
+    var parentForThis = isSub ? currentParent : null;
+    var isCollapsed = parentForThis && window._collapsedGroups[curProjId][parentForThis];
+
     var li = document.createElement("li");
-    li.className = "ms-row " + m.status + (m.scope==="二期" ? " phase2" : "");
+    li.className = "ms-row " + m.status + (m.scope==="二期" ? " phase2" : "") + (isSub ? " subtask" : "") + (isCollapsed ? " collapsed" : "");
+    if (isSub && parentForThis) {
+      li.setAttribute("data-parent", parentForThis);
+    }
     var d = dateOnly(m.date);
     var md = mmdd(m.date);
     var tag = "";
